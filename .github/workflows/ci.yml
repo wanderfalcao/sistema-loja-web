@@ -36,3 +36,25 @@ jobs:
           name: jacoco-pedido-service
           path: pedido-service/target/site/jacoco/
         if: always()
+
+      - name: Selenium E2E — produto-service
+        run: mvn test -pl produto-service -Dgroups=selenium -B
+        continue-on-error: true
+
+      - name: Selenium E2E — pedido-service
+        run: mvn test -pl pedido-service -Dgroups=selenium -B
+        continue-on-error: true
+
+      - name: Upload resultados Selenium — produto-service
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-produto-service
+          path: produto-service/target/surefire-reports/
+        if: always()
+
+      - name: Upload resultados Selenium — pedido-service
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-pedido-service
+          path: pedido-service/target/surefire-reports/
+        if: always()
