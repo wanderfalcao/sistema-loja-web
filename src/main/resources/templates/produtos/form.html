@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${titulo}">Produto</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+    <link rel="stylesheet" href="/css/global.css"/>
+    <link rel="stylesheet" href="/css/form.css"/>
+</head>
+<body>
+
+<!-- ── Topbar ───────────────────────────────────────────── -->
+<nav class="topbar">
+    <a class="topbar-brand" href="/produtos">
+        <i class="bi bi-box-seam"></i>Gerenciador de Produtos
+    </a>
+    <a href="/pedidos" class="btn-new" style="background:#6366f1;">
+        <i class="bi bi-clipboard2-check"></i>Pedidos
+    </a>
+</nav>
+
+<div class="main" style="max-width: 640px;">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/produtos">Produtos</a></li>
+            <li class="breadcrumb-item active" th:text="${titulo}"></li>
+        </ol>
+    </nav>
+
+    <div class="form-card">
+
+        <div class="d-flex align-items-center gap-2 mb-4">
+            <h4 class="mb-0" th:text="${titulo}">Produto</h4>
+        </div>
+
+        <div id="mensagem-erro" th:if="${erro}"
+             class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-exclamation-circle-fill"></i>
+            <span th:text="${erro}"></span>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+
+        <form th:action="${acao}" method="post">
+            <div class="mb-3">
+                <label for="nome" class="form-label">Nome do produto <span class="text-danger">*</span></label>
+                <input type="text"
+                       id="nome"
+                       name="nome"
+                       class="form-control form-control-lg"
+                       th:value="${nome}"
+                       placeholder="Ex: Monitor 4K"
+                       required/>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label for="preco" class="form-label">Preço (R$) <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text">R$</span>
+                        <input type="number"
+                               id="preco"
+                               name="preco"
+                               class="form-control"
+                               th:value="${preco}"
+                               placeholder="0,00"
+                               step="0.01"
+                               min="0"
+                               required/>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="estoque" class="form-label">Estoque</label>
+                    <input type="number"
+                           id="estoque"
+                           name="estoque"
+                           class="form-control form-control-lg"
+                           th:value="${estoque}"
+                           min="0"
+                           placeholder="0"/>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="descricao" class="form-label">Descrição <span class="text-muted fw-normal small">(opcional)</span></label>
+                <textarea id="descricao"
+                          name="descricao"
+                          class="form-control"
+                          rows="3"
+                          maxlength="1000"
+                          placeholder="Descrição detalhada do produto"
+                          th:text="${descricao}"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="categoria" class="form-label">Categoria <span class="text-muted fw-normal small">(opcional)</span></label>
+                <select id="categoria" name="categoria" class="form-select form-select-lg">
+                    <option value="">— Sem categoria —</option>
+                    <option th:each="cat : ${categorias}"
+                            th:value="${cat.name()}"
+                            th:text="${cat.label}"
+                            th:selected="${cat == categoriaSelecionada}"></option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="imagemUrl" class="form-label">
+                    Imagem <span class="text-muted fw-normal small">(URL opcional)</span>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-image"></i></span>
+                    <input type="url"
+                           id="imagemUrl"
+                           name="imagemUrl"
+                           class="form-control"
+                           th:value="${imagemUrl}"
+                           placeholder="https://exemplo.com/imagem.jpg"
+                           oninput="atualizarPreviewImagem(this.value)"/>
+                </div>
+                <div id="imagem-preview-wrap" class="mt-2" style="display:none">
+                    <img id="imagem-preview" src="" alt="Preview"
+                         class="rounded border" style="max-height:120px; object-fit:contain;"/>
+                </div>
+            </div>
+
+            <div class="mb-4 form-check form-switch">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="ativo"
+                       name="ativo"
+                       value="true"
+                       th:checked="${ativo}"/>
+                <label class="form-check-label form-label" for="ativo">Produto ativo</label>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="submit" id="btn-salvar" class="btn-primary-custom btn">
+                    <i class="bi bi-check-lg me-1"></i>Salvar
+                </button>
+                <a href="/produtos" id="btn-cancelar" class="btn-secondary-custom btn">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<footer class="app-footer">
+    <i class="bi bi-box-seam"></i>
+    <span>Sistema Loja</span>
+    <span class="app-footer-dot">&bull;</span>
+    <span>Infnet &copy; 2026</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function atualizarPreviewImagem(url) {
+        var wrap = document.getElementById('imagem-preview-wrap');
+        var img  = document.getElementById('imagem-preview');
+        if (url && url.trim()) {
+            img.src = url.trim();
+            wrap.style.display = 'block';
+            img.onerror = function() { wrap.style.display = 'none'; };
+        } else {
+            wrap.style.display = 'none';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var input = document.getElementById('imagemUrl');
+        if (input && input.value) atualizarPreviewImagem(input.value);
+    });
+</script>
+</body>
+</html>

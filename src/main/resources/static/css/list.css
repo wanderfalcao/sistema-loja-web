@@ -1,0 +1,66 @@
+.table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    overflow: hidden;
+}
+.table-card-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+.table-card-hd h4 { margin: 0; font-size: 1rem; font-weight: 600; }
+
+/* Tabela */
+.ot { width: 100%; border-collapse: collapse; }
+.ot thead th {
+    background: #F9FAFB;
+    padding: .75rem 1rem;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.ot tbody td {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    font-size: .875rem;
+}
+.ot tbody tr:last-child td { border-bottom: none; }
+.ot tbody tr:hover { background: #F9FAFB; }
+
+.valor-cell { font-family: 'JetBrains Mono', monospace; font-weight: 500; color: #059669; }
+.sku-cell   { font-family: 'JetBrains Mono', monospace; font-size: .85rem; color: var(--muted); }
+
+/* Empty state */
+.empty-state { padding: 3rem 0; color: var(--muted); text-align: center; }
+
+/* Tabela com scroll horizontal no mobile */
+.table-responsive-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Footer de contagem */
+.table-footer {
+    padding: .6rem 1.5rem;
+    font-size: .8rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 768px) {
+    .ot .col-descricao { display: none; }
+    .table-card-hd { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 576px) {
+    .ot .col-estoque { display: none; }
+}

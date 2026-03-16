@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="'Pedido — ' + ${pedido.descricao}">Detalhe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+    <link rel="stylesheet" href="/css/global.css"/>
+    <link rel="stylesheet" href="/css/pedido.css"/>
+</head>
+<body>
+
+<!-- ── Topbar ───────────────────────────────────────────── -->
+<nav class="topbar">
+    <a class="topbar-brand" href="/pedidos">
+        <i class="bi bi-clipboard2-check"></i>Gestão de Pedidos
+    </a>
+    <a href="/produtos" class="btn-new" style="background:#059669;">
+        <i class="bi bi-box-seam"></i>Produtos
+    </a>
+</nav>
+
+<div class="main">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/pedidos">Pedidos</a></li>
+            <li class="breadcrumb-item active" th:text="${pedido.descricao}"></li>
+        </ol>
+    </nav>
+
+    <!-- Alertas -->
+    <div th:if="${sucesso}" class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle me-2"></i><span th:text="${sucesso}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${erro}" class="alert alert-danger alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle me-2"></i><span th:text="${erro}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Cancelado banner -->
+    <div th:if="${pedido.status.name() == 'CANCELADO'}" class="cancelled-banner">
+        <i class="bi bi-x-circle-fill"></i>
+        Este pedido foi cancelado e não pode mais ser alterado.
+    </div>
+
+    <!-- ── Page header ─────────────────────────────────── -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="${pedido.descricao}"></h1>
+            <span class="sbadge" th:classappend="'sb-' + ${pedido.status.name()}"
+                  th:text="${pedido.status}"></span>
+        </div>
+        <div class="action-row">
+            <a th:href="@{/pedidos/{id}/editar(id=${pedido.id})}" class="ab ab-sm ab-outline">
+                <i class="bi bi-pencil"></i>Editar
+            </a>
+            <form th:action="@{/pedidos/{id}/deletar(id=${pedido.id})}" method="post" class="d-inline"
+                  onsubmit="return confirm('Remover este pedido?')">
+                <button type="submit" class="ab ab-sm ab-danger-outline">
+                    <i class="bi bi-trash"></i>Remover
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Timeline ────────────────────────────────────── -->
+    <div class="timeline-wrap">
+        <div class="tl-title"><i class="bi bi-diagram-3 me-1"></i>Jornada do pedido</div>
+        <div class="timeline" th:with="
+            st=${pedido.status.name()},
+            isPend=${st == 'PENDENTE'},
+            isProc=${st == 'PROCESSANDO'},
+            isConc=${st == 'CONCLUIDO'},
+            isCont=${st == 'CONTESTADO'},
+            isCan=${st == 'CANCELADO'},
+            pastProc=${isProc or isConc or isCont},
+            pastConc=${isConc or isCont}">
+
+            <!-- PENDENTE -->
+            <div class="tl-step">
+                <div class="tl-dot"
+                     th:classappend="${isPend} ? 'active s-PENDENTE' : (${pastProc or pastConc or isProc} ? 'done' : '')">
+                    <i class="bi" th:classappend="${pastProc or pastConc} ? 'bi-check' : 'bi-hourglass-split'"></i>
+                </div>
+                <div class="tl-label" th:classappend="${isPend} ? 'active'">Pendente</div>
+            </div>
+
+            <div class="tl-line" th:classappend="${pastProc or isProc} ? 'done'"></div>
+
+            <!-- PROCESSANDO -->
+            <div class="tl-step">
+                <div class="tl-dot"
+                     th:classappend="${isProc} ? 'active s-PROCESSANDO' : (${pastConc or isCont} ? 'done' : '')">
+                    <i class="bi" th:classappend="${pastConc or isCont} ? 'bi-check' : 'bi-arrow-repeat'"></i>
+                </div>
+                <div class="tl-label" th:classappend="${isProc} ? 'active'">Processando</div>
+            </div>
+
+            <div class="tl-line" th:classappend="${pastConc or isConc or isCont} ? 'done'"></div>
+
+            <!-- CONCLUIDO -->
+            <div class="tl-step">
+                <div class="tl-dot"
+                     th:classappend="${isConc} ? 'active s-CONCLUIDO' : (${isCont} ? 'done' : '')">
+                    <i class="bi" th:classappend="${isCont} ? 'bi-check' : 'bi-check2-circle'"></i>
+                </div>
+                <div class="tl-label" th:classappend="${isConc} ? 'active'">Concluído</div>
+            </div>
+
+            <!-- CONTESTADO -->
+            <th:block th:if="${isCont}">
+                <div class="tl-line done" style="background: var(--c-contestado);"></div>
+                <div class="tl-step">
+                    <div class="tl-dot active s-CONTESTADO">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="tl-label active">Contestado</div>
+                </div>
+            </th:block>
+
+            <!-- CANCELADO -->
+            <th:block th:if="${isCan}">
+                <div class="tl-line" style="background: var(--c-cancelado);"></div>
+                <div class="tl-step">
+                    <div class="tl-dot active s-CANCELADO">
+                        <i class="bi bi-x-lg"></i>
+                    </div>
+                    <div class="tl-label active">Cancelado</div>
+                </div>
+            </th:block>
+
+        </div>
+    </div>
+
+    <!-- ── Content grid ─────────────────────────────────── -->
+    <div class="row g-3">
+
+        <!-- Info card -->
+        <div class="col-md-7">
+            <div class="card h-100">
+                <div class="card-hd">
+                    <i class="bi bi-info-circle"></i>Detalhes
+                </div>
+                <div class="card-body">
+
+                    <div th:if="${pedido.status.name() == 'CONTESTADO' and !#strings.isEmpty(pedido.observacao)}"
+                         class="contestacao-box">
+                        <div class="ctitle"><i class="bi bi-exclamation-triangle me-1"></i>Motivo da contestação</div>
+                        <div class="cmotivo" th:text="${pedido.observacao}"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="info-label">Valor</div>
+                        <div class="info-valor"
+                             th:text="${'R$ ' + #numbers.formatDecimal(pedido.valor, 1, 'POINT', 2, 'COMMA')}"></div>
+                    </div>
+
+                    <div class="mb-3"
+                         th:if="${!#strings.isEmpty(pedido.observacao) and pedido.status.name() != 'CONTESTADO'}">
+                        <div class="info-label">Observação</div>
+                        <div class="info-value" th:text="${pedido.observacao}"></div>
+                    </div>
+
+                    <div>
+                        <div class="info-label">ID do Pedido</div>
+                        <code class="info-id" th:text="${pedido.id}"></code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar: datas + ações -->
+        <div class="col-md-5 d-flex flex-column gap-3">
+
+            <!-- Datas -->
+            <div class="card">
+                <div class="card-hd">
+                    <i class="bi bi-calendar3"></i>Datas
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item" style="padding:.875rem 1.25rem;">
+                        <div class="info-label">Criado em</div>
+                        <div class="info-value"
+                             th:text="${#temporals.format(pedido.dataCriacao,'dd/MM/yyyy HH:mm:ss')}"></div>
+                    </li>
+                    <li class="list-group-item" style="padding:.875rem 1.25rem;">
+                        <div class="info-label">Última atualização</div>
+                        <div class="info-value"
+                             th:text="${pedido.dataAtualizacao != null}
+                                        ? ${#temporals.format(pedido.dataAtualizacao,'dd/MM/yyyy HH:mm:ss')}
+                                        : '—'"></div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Ações de status (contextuais) -->
+            <div class="card"
+                 th:if="${pedido.status.name() != 'CANCELADO'}">
+                <div class="card-hd">
+                    <i class="bi bi-arrow-right-circle"></i>Ações disponíveis
+                </div>
+                <div class="card-body d-flex flex-column gap-2">
+
+                    <!-- PENDENTE -->
+                    <th:block th:if="${pedido.status.name() == 'PENDENTE'}">
+                        <form th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post">
+                            <input type="hidden" name="novoStatus" value="PROCESSANDO"/>
+                            <button type="submit" class="ab w-100 ab-processar justify-content-center">
+                                <i class="bi bi-arrow-right-circle"></i>Mover para Processando
+                            </button>
+                        </form>
+                        <form th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post">
+                            <input type="hidden" name="novoStatus" value="CANCELADO"/>
+                            <button type="submit" class="ab w-100 ab-cancelar justify-content-center">
+                                <i class="bi bi-x-circle"></i>Cancelar pedido
+                            </button>
+                        </form>
+                    </th:block>
+
+                    <!-- PROCESSANDO -->
+                    <th:block th:if="${pedido.status.name() == 'PROCESSANDO'}">
+                        <form th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post">
+                            <input type="hidden" name="novoStatus" value="CONCLUIDO"/>
+                            <button type="submit" class="ab w-100 ab-concluir justify-content-center">
+                                <i class="bi bi-check-circle"></i>Concluir pedido
+                            </button>
+                        </form>
+                        <form th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post">
+                            <input type="hidden" name="novoStatus" value="CANCELADO"/>
+                            <button type="submit" class="ab w-100 ab-cancelar justify-content-center">
+                                <i class="bi bi-x-circle"></i>Cancelar pedido
+                            </button>
+                        </form>
+                    </th:block>
+
+                    <!-- CONCLUIDO: somente contestar -->
+                    <th:block th:if="${pedido.status.name() == 'CONCLUIDO'}">
+                        <button type="button"
+                                class="ab w-100 ab-contestar justify-content-center"
+                                data-bs-toggle="modal" data-bs-target="#modalContestar"
+                                th:attr="data-pedido-id=${pedido.id}">
+                            <i class="bi bi-exclamation-triangle"></i>Contestar este pedido
+                        </button>
+                        <p class="mb-0 mt-1" style="font-size:.75rem; color:var(--muted);">
+                            Encontrou um problema? Abra uma contestação para que o pedido seja reavaliado.
+                        </p>
+                    </th:block>
+
+                    <!-- CONTESTADO: Reprocessar + Cancelar -->
+                    <th:block th:if="${pedido.status.name() == 'CONTESTADO'}">
+                        <form th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post">
+                            <input type="hidden" name="novoStatus" value="PROCESSANDO"/>
+                            <button type="submit" class="ab w-100 ab-reprocessar justify-content-center">
+                                <i class="bi bi-arrow-counterclockwise"></i>Reprocessar pedido
+                            </button>
+                        </form>
+                        <form th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post">
+                            <input type="hidden" name="novoStatus" value="CANCELADO"/>
+                            <button type="submit" class="ab w-100 ab-cancelar justify-content-center">
+                                <i class="bi bi-x-circle"></i>Cancelar pedido
+                            </button>
+                        </form>
+                    </th:block>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Itens do pedido ──────────────────────────────────── -->
+    <div class="card mt-3">
+        <div class="card-hd">
+            <i class="bi bi-list-ul"></i>Itens do pedido
+        </div>
+        <div class="card-body p-0">
+
+            <div th:if="${!pedido.itens.isEmpty()}">
+                <table class="table table-sm mb-0" style="font-size:.875rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Produto</th>
+                            <th>SKU</th>
+                            <th class="text-center">Qtd</th>
+                            <th class="text-end">Preço Unit.</th>
+                            <th class="text-end">Subtotal</th>
+                            <th th:if="${pedido.status.name() == 'PENDENTE'}"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="item : ${pedido.itens}">
+                            <td th:text="${item.nomeProduto}"></td>
+                            <td class="text-muted" th:text="${item.skuProduto ?: '—'}"></td>
+                            <td class="text-center" th:text="${item.quantidade}"></td>
+                            <td class="text-end"
+                                th:text="${'R$ ' + #numbers.formatDecimal(item.precoUnitario, 1, 'POINT', 2, 'COMMA')}"></td>
+                            <td class="text-end fw-semibold"
+                                th:text="${'R$ ' + #numbers.formatDecimal(item.subtotal, 1, 'POINT', 2, 'COMMA')}"></td>
+                            <td th:if="${pedido.status.name() == 'PENDENTE'}" class="text-end">
+                                <form th:action="@{/pedidos/{id}/itens/{itemId}/remover(id=${pedido.id},itemId=${item.id})}"
+                                      method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1"
+                                            title="Remover item">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold">Total:</td>
+                            <td class="text-end fw-bold"
+                                th:text="${'R$ ' + #numbers.formatDecimal(pedido.calcularTotal(), 1, 'POINT', 2, 'COMMA')}"></td>
+                            <td th:if="${pedido.status.name() == 'PENDENTE'}"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div th:if="${pedido.itens.isEmpty()}" class="p-3 text-muted" style="font-size:.875rem;">
+                Nenhum item adicionado.
+            </div>
+
+        </div>
+
+        <!-- Form de adição de item (somente para PENDENTE) -->
+        <div th:if="${pedido.status.name() == 'PENDENTE'}"
+             class="card-body border-top" style="background:var(--surface-2,#f8f9fa); border-radius:0 0 .5rem .5rem;">
+            <p class="fw-semibold mb-2" style="font-size:.8rem; color:var(--muted);">Adicionar item</p>
+            <form th:action="@{/pedidos/{id}/itens(id=${pedido.id})}" method="post">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm mb-1">Produto *</label>
+                        <input type="text" name="nomeProduto" class="form-control form-control-sm"
+                               placeholder="Nome do produto" required/>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm mb-1">SKU</label>
+                        <input type="text" name="skuProduto" class="form-control form-control-sm"
+                               placeholder="Opcional"/>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm mb-1">Preço unit. *</label>
+                        <input type="number" name="precoUnitario" class="form-control form-control-sm"
+                               step="0.01" min="0.01" placeholder="0.00" required/>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label form-label-sm mb-1">Qtd *</label>
+                        <input type="number" name="quantidade" class="form-control form-control-sm"
+                               min="1" value="1" required/>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-plus-lg me-1"></i>Adicionar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Voltar -->
+    <div class="mt-4">
+        <a href="/pedidos" class="text-decoration-none" style="font-size:.875rem; color:var(--muted);">
+            <i class="bi bi-arrow-left me-1"></i>Voltar para lista
+        </a>
+    </div>
+
+</div><!-- /main -->
+
+<!-- ── Modal Contestar ──────────────────────────────────── -->
+<div class="modal fade" id="modalContestar" tabindex="-1"
+     aria-labelledby="modalContestarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-hd d-flex align-items-center justify-content-between">
+                <h5 class="modal-title mb-0 d-flex align-items-center gap-2" id="modalContestarLabel">
+                    <i class="bi bi-exclamation-triangle"></i>Contestar Pedido
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formContestar" method="post" action="#">
+                <div class="modal-body p-4">
+                    <p class="fw-semibold mb-1" style="font-size:.875rem;">Motivo da contestação</p>
+                    <p class="mb-3" style="font-size:.8rem; color:var(--muted);">
+                        Descreva o problema encontrado. O motivo ficará registrado e visível na listagem.
+                    </p>
+                    <textarea name="motivo" id="motivoContestacao" class="form-control"
+                              rows="4" required
+                              placeholder="Ex.: Produto recebido com defeito, quantidade incorreta..."></textarea>
+                </div>
+                <div class="modal-footer border-top" style="padding:.875rem 1.25rem; gap:.5rem;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn-contestar-submit">
+                        <i class="bi bi-send me-1"></i>Enviar contestação
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<footer class="app-footer">
+    <i class="bi bi-clipboard2-check"></i>
+    <span>Sistema Loja</span>
+    <span class="app-footer-dot">&bull;</span>
+    <span>Infnet &copy; 2026</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/global.js"></script>
+</body>
+</html>
