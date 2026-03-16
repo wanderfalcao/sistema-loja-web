@@ -36,8 +36,6 @@ public class ProdutoService implements CrudService<Produto, UUID> {
     private final ProdutoRepository repository;
     private final ProdutoMapper mapper;
 
-    // ── MVC ───────────────────────────────────────────────────────────────────
-
     public Produto cadastrar(String nome, BigDecimal preco,
                               String descricao, Integer estoque,
                               CategoriaProduto categoria, String imagemUrl) {
@@ -82,8 +80,6 @@ public class ProdutoService implements CrudService<Produto, UUID> {
         repository.deleteById(id);
     }
 
-    // ── REST / DTO ────────────────────────────────────────────────────────────
-
     public ProdutoResponse criarDTO(ProdutoRequest request) {
         if (repository.existsByNomeIgnoreCase(request.getNome()))
             throw new DomainException("Produto com este nome já existe: " + request.getNome());
@@ -93,8 +89,7 @@ public class ProdutoService implements CrudService<Produto, UUID> {
         if (repository.existsBySkuIgnoreCase(produto.getSku()))
             throw new DomainException("SKU já cadastrado: " + produto.getSku());
 
-        if (Boolean.TRUE.equals(produto.getAtivo()) && produto.getEstoque() == 0)
-            throw new DomainException("Produto ativo deve ter estoque maior que zero.");
+        validarAtivacaoComEstoque(produto);
 
         return mapper.toResponse(repository.save(produto));
     }
@@ -112,8 +107,7 @@ public class ProdutoService implements CrudService<Produto, UUID> {
 
         ProdutoFactory.atualizar(produto, request);
 
-        if (Boolean.TRUE.equals(produto.getAtivo()) && produto.getEstoque() == 0)
-            throw new DomainException("Produto ativo deve ter estoque maior que zero.");
+        validarAtivacaoComEstoque(produto);
 
         return mapper.toResponse(repository.save(produto));
     }
@@ -170,5 +164,10 @@ public class ProdutoService implements CrudService<Produto, UUID> {
         Produto produto = buscarPorId(id);
         produto.encerrarPromocao();
         return mapper.toResponse(repository.save(produto));
+    }
+
+    private void validarAtivacaoComEstoque(Produto produto) {
+        if (Boolean.TRUE.equals(produto.getAtivo()) && produto.getEstoque() == 0)
+            throw new DomainException("Produto ativo deve ter estoque maior que zero.");
     }
 }

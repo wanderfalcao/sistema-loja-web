@@ -20,7 +20,7 @@ import java.util.UUID;
         @Index(name = "idx_produto_nome", columnList = "nome")
 })
 @Getter
-@Setter                          // gera setters para todos os campos…
+@Setter
 @NoArgsConstructor               // exigido pelo JPA e pelo MapStruct
 @EntityListeners(AuditingEntityListener.class)
 public class Produto {
@@ -33,7 +33,7 @@ public class Produto {
     private static final String ERR_PRECO_INVALIDO = "Preco deve ser maior que zero";
 
     @Id
-    @Setter(AccessLevel.NONE)                        // … exceto os campos imutáveis
+    @Setter(AccessLevel.NONE)
     private UUID id;
 
     @Column(nullable = false, length = MAX_NOME, unique = true)
@@ -78,8 +78,6 @@ public class Produto {
     @Setter(AccessLevel.NONE)
     private LocalDateTime dataAtualizacao;
 
-    // ── Fábrica ───────────────────────────────────────────────────────────────
-
     /** Único ponto de criação: aplica todas as invariantes de domínio. */
     public static Produto novo(String nome, String sku, BigDecimal preco) {
         if (nome == null || nome.trim().isEmpty()) throw new DomainException("Nome obrigatorio");
@@ -96,8 +94,6 @@ public class Produto {
         return p;
     }
 
-    // ── Comandos de domínio ───────────────────────────────────────────────────
-
     public void atualizar(String nome, String sku, BigDecimal preco) {
         if (nome == null || nome.trim().isEmpty()) throw new DomainException("Nome obrigatorio");
         if (sku == null || sku.trim().isEmpty())   throw new DomainException("SKU obrigatorio");
@@ -108,7 +104,7 @@ public class Produto {
     }
 
     public void ativar() {
-        if (estoque == null || estoque <= estoqueMinimo)
+        if (estoque <= estoqueMinimo)
             throw new DomainException("Produto sem estoque suficiente nao pode ser ativado");
         this.ativo = true;
     }
@@ -126,8 +122,6 @@ public class Produto {
     public void encerrarPromocao() {
         this.promocao = null;
     }
-
-    // ── Query de conveniência ─────────────────────────────────────────────────
 
     /** Preço com desconto quando há promoção ativa, ou {@code null}. */
     public BigDecimal getPrecoPromocional() {

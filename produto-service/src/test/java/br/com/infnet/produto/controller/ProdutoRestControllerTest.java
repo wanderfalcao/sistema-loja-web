@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -41,8 +42,6 @@ class ProdutoRestControllerTest {
     @MockBean
     private ProdutoService service;
 
-    // ── GET /api/v1/produtos ──────────────────────────────────────────────────
-
     @Test
     @WithMockUser
     void deveListarProdutosComStatus200() throws Exception {
@@ -57,8 +56,6 @@ class ProdutoRestControllerTest {
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content[0].nome").value("Monitor 4K"));
     }
-
-    // ── GET /api/v1/produtos/{id} ─────────────────────────────────────────────
 
     @Test
     @WithMockUser
@@ -84,8 +81,6 @@ class ProdutoRestControllerTest {
                 .andExpect(jsonPath("$.title").value("Recurso não encontrado"));
     }
 
-    // ── GET /api/v1/produtos/sku/{sku} ────────────────────────────────────────
-
     @Test
     @WithMockUser
     void deveBuscarProdutoPorSkuComStatus200() throws Exception {
@@ -110,8 +105,6 @@ class ProdutoRestControllerTest {
                 .andExpect(jsonPath("$.title").value("Regra de negócio violada"));
     }
 
-    // ── POST /api/v1/produtos ─────────────────────────────────────────────────
-
     @Test
     @WithMockUser
     void deveCriarProdutoValido201() throws Exception {
@@ -123,6 +116,7 @@ class ProdutoRestControllerTest {
         when(service.criarDTO(any(ProdutoRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/produtos")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -138,13 +132,12 @@ class ProdutoRestControllerTest {
                 """;
 
         mockMvc.perform(post("/api/v1/produtos")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Dados inválidos"));
     }
-
-    // ── PUT /api/v1/produtos/{id} ─────────────────────────────────────────────
 
     @Test
     @WithMockUser
@@ -157,13 +150,12 @@ class ProdutoRestControllerTest {
         when(service.atualizarDTO(eq(id), any(ProdutoRequest.class))).thenReturn(response);
 
         mockMvc.perform(put("/api/v1/produtos/{id}", id)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Monitor 4K Pro"));
     }
-
-    // ── DELETE /api/v1/produtos/{id} ──────────────────────────────────────────
 
     @Test
     @WithMockUser
@@ -171,13 +163,12 @@ class ProdutoRestControllerTest {
         UUID id = UUID.randomUUID();
         doNothing().when(service).remover(id);
 
-        mockMvc.perform(delete("/api/v1/produtos/{id}", id))
+        mockMvc.perform(delete("/api/v1/produtos/{id}", id)
+                        .with(csrf()))
                 .andExpect(status().isNoContent());
 
         verify(service).remover(id);
     }
-
-    // ── PATCH /api/v1/produtos/{id}/estoque ───────────────────────────────────
 
     @Test
     @WithMockUser
@@ -189,6 +180,7 @@ class ProdutoRestControllerTest {
         when(service.ajustarEstoque(eq(id), eq(TipoOperacaoEstoque.ENTRADA), eq(50))).thenReturn(response);
 
         mockMvc.perform(patch("/api/v1/produtos/{id}/estoque", id)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(ajuste)))
                 .andExpect(status().isOk())
@@ -204,6 +196,7 @@ class ProdutoRestControllerTest {
                 .thenThrow(new DomainException("Estoque insuficiente. Disponivel: 5"));
 
         mockMvc.perform(patch("/api/v1/produtos/{id}/estoque", id)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(ajuste)))
                 .andExpect(status().isUnprocessableEntity())
@@ -221,8 +214,6 @@ class ProdutoRestControllerTest {
                 .andExpect(jsonPath("$.title").value("Erro interno"));
     }
 
-    // ── PATCH /api/v1/produtos/{id}/promocao ──────────────────────────────────
-
     @Test
     @WithMockUser
     void deveAtivarPromocaoComStatus200() throws Exception {
@@ -233,6 +224,7 @@ class ProdutoRestControllerTest {
         when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(response);
 
         mockMvc.perform(patch("/api/v1/produtos/{id}/promocao", id)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -246,7 +238,8 @@ class ProdutoRestControllerTest {
         ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
         when(service.encerrarPromocao(id)).thenReturn(response);
 
-        mockMvc.perform(delete("/api/v1/produtos/{id}/promocao", id))
+        mockMvc.perform(delete("/api/v1/produtos/{id}/promocao", id)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Monitor 4K"));
     }
@@ -260,13 +253,12 @@ class ProdutoRestControllerTest {
                 """;
 
         mockMvc.perform(patch("/api/v1/produtos/{id}/promocao", id)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Dados inválidos"));
     }
-
-    // ── helpers ───────────────────────────────────────────────────────────────
 
     private ProdutoResponse buildResponse(UUID id, String nome, String sku, BigDecimal preco) {
         ProdutoResponse r = new ProdutoResponse();

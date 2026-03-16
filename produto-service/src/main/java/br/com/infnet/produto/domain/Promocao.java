@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 @Embeddable
 public class Promocao {
 
+    private static final BigDecimal CEM = new BigDecimal("100");
+
     @Column(name = "promo_percentual", precision = 5, scale = 2)
     private BigDecimal percentualDesconto;
 
@@ -38,7 +40,7 @@ public class Promocao {
                                   LocalDateTime fim, BigDecimal precoBase) {
         if (percentual == null
                 || percentual.compareTo(BigDecimal.ZERO) <= 0
-                || percentual.compareTo(new BigDecimal("100")) >= 0) {
+                || percentual.compareTo(CEM) >= 0) {
             throw new DomainException("Percentual de desconto deve ser maior que 0 e menor que 100");
         }
         if (fim != null && inicio != null && !fim.isAfter(inicio)) {
@@ -48,7 +50,7 @@ public class Promocao {
         Promocao p = new Promocao();
         p.percentualDesconto = percentual;
         p.precoComDesconto = precoBase
-                .multiply(BigDecimal.ONE.subtract(percentual.divide(new BigDecimal("100"))))
+                .multiply(BigDecimal.ONE.subtract(percentual.divide(CEM)))
                 .setScale(2, RoundingMode.HALF_UP);
         p.inicio = inicio;
         p.fim = fim;
