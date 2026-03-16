@@ -10,8 +10,10 @@ import java.util.UUID;
 
 public class ItemPedidoFactory {
 
+    private static final int MIN_QUANTIDADE = 1;
+
     public static ItemPedido criar(Pedido pedido, ItemPedidoRequest request) {
-        if (request.getQuantidade() == null || request.getQuantidade() < 1) {
+        if (request.getQuantidade() == null || request.getQuantidade() < MIN_QUANTIDADE) {
             throw new DomainException("Quantidade mínima é 1.");
         }
         if (request.getPrecoUnitario() == null ||
