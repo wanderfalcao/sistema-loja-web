@@ -9,7 +9,7 @@
     <version>1.0</version>
     <packaging>pom</packaging>
     <name>sistema-loja-web</name>
-    <description>Microsserviços: produto-service e pedido-service — TP4</description>
+    <description>Microsserviços: produto-service e pedido-service</description>
 
     <modules>
         <module>produto-service</module>
