@@ -2,6 +2,7 @@ package br.com.infnet.pedido.controller;
 
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusPedido;
+import br.com.infnet.shared.PaginacaoConstants;
 import br.com.infnet.pedido.dto.ItemPedidoRequest;
 import br.com.infnet.pedido.service.PedidoService;
 import br.com.infnet.shared.exception.DomainException;
@@ -44,10 +45,12 @@ public class PedidoController {
 
     @GetMapping
     public String listar(
-            @PageableDefault(size = 10, sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable,
+            @PageableDefault(size = PaginacaoConstants.PAGE_SIZE, sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) StatusPedido filtroStatus,
+            @RequestParam(required = false) String busca,
             Model model) {
 
-        Page<Pedido> page = service.listarPaginado(pageable);
+        Page<Pedido> page = service.listarPaginadoComFiltros(filtroStatus, busca, pageable);
 
         Sort.Order order = pageable.getSort().isSorted()
                 ? pageable.getSort().iterator().next()
@@ -55,9 +58,9 @@ public class PedidoController {
         String sortField = order.getProperty();
         String sortDir   = order.getDirection().name().toLowerCase();
 
-        int pageStart = Math.max(0, page.getNumber() - 2);
+        int pageStart = Math.max(0, page.getNumber() - PaginacaoConstants.PAGINATION_WINDOW);
         int pageEnd   = page.getTotalPages() > 0
-                ? Math.min(page.getTotalPages() - 1, page.getNumber() + 2)
+                ? Math.min(page.getTotalPages() - 1, page.getNumber() + PaginacaoConstants.PAGINATION_WINDOW)
                 : 0;
 
         model.addAttribute("pedidos",           page.getContent());
@@ -67,6 +70,8 @@ public class PedidoController {
         model.addAttribute("pageStart",         pageStart);
         model.addAttribute("pageEnd",           pageEnd);
         model.addAttribute("status",            StatusPedido.values());
+        model.addAttribute("filtroStatus",      filtroStatus);
+        model.addAttribute("busca",             busca);
         model.addAttribute("contagemPorStatus", service.contarPorStatus());
         model.addAttribute("totalAtivo",        service.somarValoresAtivos());
         return VIEW_LISTA;
@@ -74,8 +79,9 @@ public class PedidoController {
 
     @GetMapping("/{id}")
     public String detalhe(@PathVariable UUID id, Model model) {
-        model.addAttribute("pedido",  service.buscar(id));
-        model.addAttribute("status", StatusPedido.values());
+        model.addAttribute("pedido",    service.buscar(id));
+        model.addAttribute("status",   StatusPedido.values());
+        model.addAttribute("historico", service.buscarHistorico(id));
         return VIEW_DETALHE;
     }
 
@@ -140,16 +146,19 @@ public class PedidoController {
 
     @PostMapping("/{id}/itens")
     public String adicionarItem(@PathVariable UUID id,
-                                @RequestParam String nomeProduto,
-                                @RequestParam String precoUnitario,
+                                @RequestParam(required = false) String nomeProduto,
+                                @RequestParam(required = false) String precoUnitario,
                                 @RequestParam Integer quantidade,
                                 @RequestParam(required = false) String skuProduto,
+                                @RequestParam(required = false) UUID produtoId,
                                 RedirectAttributes ra) {
+        BigDecimal preco = (precoUnitario != null && !precoUnitario.isBlank())
+                           ? parsearValor(precoUnitario) : null;
         ItemPedidoRequest request = new ItemPedidoRequest(
-                null, nomeProduto, skuProduto, parsearValor(precoUnitario), quantidade);
+                produtoId, nomeProduto, skuProduto, preco, quantidade);
         service.adicionarItem(id, request);
         ra.addFlashAttribute(FLASH_SUCESSO, MSG_ITEM_ADICIONADO);
-        return "redirect:/pedidos/" + id;
+        return redirectDetalhe(id);
     }
 
     @PostMapping("/{id}/itens/{itemId}/remover")
@@ -158,6 +167,10 @@ public class PedidoController {
                               RedirectAttributes ra) {
         service.removerItem(id, itemId);
         ra.addFlashAttribute(FLASH_SUCESSO, MSG_ITEM_REMOVIDO);
+        return redirectDetalhe(id);
+    }
+
+    private static String redirectDetalhe(UUID id) {
         return "redirect:/pedidos/" + id;
     }
 
