@@ -17,12 +17,4 @@ public class GlobalExceptionHandler {
         ra.addFlashAttribute("erro", ex.getMessage() != null ? ex.getMessage() : "Operação não permitida.");
         return "redirect:/produtos";
     }
-
-    @ExceptionHandler(Exception.class)
-    public String handleException(Exception ex,
-                                   HttpServletRequest request,
-                                   RedirectAttributes ra) {
-        ra.addFlashAttribute("erro", "Erro inesperado: " + ex.getMessage());
-        return "redirect:/produtos";
-    }
 }

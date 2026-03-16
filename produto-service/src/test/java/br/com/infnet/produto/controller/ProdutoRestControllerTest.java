@@ -11,9 +11,12 @@ import br.com.infnet.produto.service.ProdutoService;
 import br.com.infnet.shared.exception.DomainException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import br.com.infnet.controller.GlobalExceptionHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
@@ -30,7 +33,13 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = {ProdutoRestController.class, RestExceptionHandler.class})
+@WebMvcTest(
+    controllers = {ProdutoRestController.class, RestExceptionHandler.class},
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE,
+        classes = GlobalExceptionHandler.class
+    )
+)
 class ProdutoRestControllerTest {
 
     @Autowired
