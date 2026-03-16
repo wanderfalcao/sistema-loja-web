@@ -77,7 +77,7 @@ class ProdutoRestControllerTest {
 
         mockMvc.perform(get("/api/v1/produtos/{id}", id))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Produto não encontrado"));
+                .andExpect(jsonPath("$.title").value("Recurso não encontrado"));
     }
 
     // ── GET /api/v1/produtos/sku/{sku} ────────────────────────────────────────
@@ -205,7 +205,7 @@ class ProdutoRestControllerTest {
 
         mockMvc.perform(get("/api/v1/produtos"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.title").value("Erro interno do servidor"));
+                .andExpect(jsonPath("$.title").value("Erro interno"));
     }
 
     // ── PATCH /api/v1/produtos/{id}/promocao ──────────────────────────────────
