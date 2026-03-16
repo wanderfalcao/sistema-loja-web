@@ -41,8 +41,8 @@ public class RestExceptionHandler {
                                                           HttpServletRequest request) {
         String detail = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
-                .findFirst()
-                .orElse("Dados inválidos.");
+                .collect(java.util.stream.Collectors.joining("; "));
+        if (detail.isBlank()) detail = "Dados inválidos.";
         log.warn("Validação falhou em {}: {}", request.getRequestURI(), detail);
         return buildError(HttpStatus.BAD_REQUEST, "Dados inválidos", detail, "validation-error");
     }

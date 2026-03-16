@@ -16,6 +16,7 @@ import java.util.UUID;
 public class ProdutoServiceClientImpl implements ProdutoServiceClient {
 
     private static final String PRODUTOS_PATH = "/api/v1/produtos/";
+    private static final String MSG_SERVICO_INDISPONIVEL = "Serviço de produtos temporariamente indisponível.";
 
     private final RestTemplate restTemplate;
 
@@ -31,7 +32,7 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
             throw new DomainException("Produto não encontrado: " + id);
         } catch (Exception e) {
             log.warn("Falha ao consultar produto-service para ID {}: {}", id, e.getMessage());
-            throw new DomainException("Serviço de produtos temporariamente indisponível.");
+            throw new DomainException(MSG_SERVICO_INDISPONIVEL);
         }
     }
 
@@ -46,7 +47,7 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
             throw new DomainException("Erro ao ajustar estoque: " + e.getMessage());
         } catch (Exception e) {
             log.warn("Falha ao contactar produto-service para ajuste de estoque: {}", e.getMessage());
-            throw new DomainException("Serviço de produtos temporariamente indisponível.");
+            throw new DomainException(MSG_SERVICO_INDISPONIVEL);
         }
     }
 }

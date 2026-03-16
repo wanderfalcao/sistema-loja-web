@@ -55,11 +55,6 @@ public class PedidoService implements CrudService<Pedido, UUID> {
     }
 
     @Transactional(readOnly = true)
-    public Page<Pedido> listarPaginado(Pageable pageable) {
-        return repository.findAll(pageable);
-    }
-
-    @Transactional(readOnly = true)
     public Page<Pedido> listarPaginadoComFiltros(StatusPedido filtroStatus, String busca, Pageable pageable) {
         String buscaNorm = (busca != null && !busca.isBlank()) ? busca.trim() : null;
         StatusPedido statusNorm = filtroStatus;
