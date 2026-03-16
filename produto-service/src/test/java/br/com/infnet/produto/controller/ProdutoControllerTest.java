@@ -19,8 +19,12 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -37,10 +41,10 @@ class ProdutoControllerTest {
     @Test
     @WithMockUser
     void deveRetornarListaDeProdutosComStatus200() throws Exception {
-        when(service.listarTodos()).thenReturn(List.of(
+        when(service.filtrar(any(), any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(
                 Produto.novo("Monitor", "MON-001", new BigDecimal("2500.0")),
                 Produto.novo("Mouse", "MOU-001", new BigDecimal("150.0"))
-        ));
+        )));
 
         mockMvc.perform(get("/produtos"))
                 .andExpect(status().isOk())
@@ -70,6 +74,7 @@ class ProdutoControllerTest {
                 .thenReturn(Produto.novo(nome.trim(), "SKU-AUTO", preco));
 
         mockMvc.perform(post("/produtos")
+                        .with(csrf())
                         .param("nome", nome.trim())
                         .param("preco", preco.toPlainString()))
                 .andExpect(status().is3xxRedirection())
@@ -123,6 +128,7 @@ class ProdutoControllerTest {
                 .thenReturn(Produto.novo("Monitor Atualizado", "MON-ATU-001", new BigDecimal("3000.0")));
 
         mockMvc.perform(post("/produtos/{id}", id)
+                        .with(csrf())
                         .param("nome", "Monitor Atualizado")
                         .param("preco", "3000.0"))
                 .andExpect(status().is3xxRedirection())
@@ -135,7 +141,8 @@ class ProdutoControllerTest {
         UUID id = UUID.randomUUID();
         doNothing().when(service).remover(id);
 
-        mockMvc.perform(post("/produtos/{id}/excluir", id))
+        mockMvc.perform(post("/produtos/{id}/excluir", id)
+                        .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/produtos"));
     }
@@ -158,6 +165,7 @@ class ProdutoControllerTest {
                 .thenThrow(new DomainException("Nome obrigatorio"));
 
         mockMvc.perform(post("/produtos")
+                        .with(csrf())
                         .param("nome", "")
                         .param("preco", "100.00"))
                 .andExpect(status().isOk())
@@ -173,6 +181,7 @@ class ProdutoControllerTest {
                 .thenThrow(new DomainException("Preco deve ser maior que zero"));
 
         mockMvc.perform(post("/produtos/{id}", id)
+                        .with(csrf())
                         .param("nome", "Monitor")
                         .param("preco", "-1.00"))
                 .andExpect(status().isOk())
@@ -186,7 +195,8 @@ class ProdutoControllerTest {
         UUID id = UUID.randomUUID();
         doThrow(new DomainException("Produto em uso")).when(service).remover(id);
 
-        mockMvc.perform(post("/produtos/{id}/excluir", id))
+        mockMvc.perform(post("/produtos/{id}/excluir", id)
+                        .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/produtos"));
     }
@@ -198,6 +208,7 @@ class ProdutoControllerTest {
         when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(new ProdutoResponse());
 
         mockMvc.perform(post("/produtos/{id}/promocao", id)
+                        .with(csrf())
                         .param("percentual", "20.00"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/produtos/" + id));
@@ -210,6 +221,7 @@ class ProdutoControllerTest {
         when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(new ProdutoResponse());
 
         mockMvc.perform(post("/produtos/{id}/promocao", id)
+                        .with(csrf())
                         .param("percentual", "15.00")
                         .param("dataInicio", "2026-06-01T10:00")
                         .param("dataFim", "2026-12-31T23:59"))
@@ -225,6 +237,7 @@ class ProdutoControllerTest {
                 .thenThrow(new DomainException("Produto inativo nao pode ter promocao ativada"));
 
         mockMvc.perform(post("/produtos/{id}/promocao", id)
+                        .with(csrf())
                         .param("percentual", "20.00"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/produtos/" + id));
@@ -236,7 +249,8 @@ class ProdutoControllerTest {
         UUID id = UUID.randomUUID();
         when(service.encerrarPromocao(id)).thenReturn(new ProdutoResponse());
 
-        mockMvc.perform(post("/produtos/{id}/promocao/encerrar", id))
+        mockMvc.perform(post("/produtos/{id}/promocao/encerrar", id)
+                        .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/produtos/" + id));
     }
@@ -247,7 +261,8 @@ class ProdutoControllerTest {
         UUID id = UUID.randomUUID();
         when(service.encerrarPromocao(id)).thenThrow(new DomainException("Sem promocao ativa"));
 
-        mockMvc.perform(post("/produtos/{id}/promocao/encerrar", id))
+        mockMvc.perform(post("/produtos/{id}/promocao/encerrar", id)
+                        .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/produtos/" + id));
     }

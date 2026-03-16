@@ -2,11 +2,12 @@ package br.com.infnet.controller;
 
 import br.com.infnet.shared.exception.DomainException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-@ControllerAdvice
+@ControllerAdvice(annotations = Controller.class)
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(DomainException.class)
