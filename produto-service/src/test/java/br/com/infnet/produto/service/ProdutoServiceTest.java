@@ -227,7 +227,7 @@ class ProdutoServiceTest {
 
         assertThatThrownBy(() -> service.criarDTO(request))
                 .isInstanceOf(DomainException.class)
-                .hasMessageContaining("nome ja existe");
+                .hasMessageContaining("nome já existe");
 
         verify(repository, never()).save(any());
     }
@@ -241,7 +241,7 @@ class ProdutoServiceTest {
 
         assertThatThrownBy(() -> service.criarDTO(request))
                 .isInstanceOf(DomainException.class)
-                .hasMessageContaining("SKU ja cadastrado");
+                .hasMessageContaining("SKU já cadastrado");
 
         verify(repository, never()).save(any());
     }
@@ -393,7 +393,7 @@ class ProdutoServiceTest {
 
         assertThatThrownBy(() -> service.atualizarDTO(id, request))
                 .isInstanceOf(DomainException.class)
-                .hasMessageContaining("nome ja existe");
+                .hasMessageContaining("nome já existe");
 
         verify(repository, never()).save(any());
     }

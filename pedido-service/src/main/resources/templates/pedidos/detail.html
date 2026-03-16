@@ -335,20 +335,38 @@
              class="card-body border-top" style="background:var(--surface-2,#f8f9fa); border-radius:0 0 .5rem .5rem;">
             <p class="fw-semibold mb-2" style="font-size:.8rem; color:var(--muted);">Adicionar item</p>
             <form th:action="@{/pedidos/{id}/itens(id=${pedido.id})}" method="post">
+                <div class="row g-2 align-items-end mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm mb-1">ID do Produto (lookup)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="inputProdutoId" class="form-control form-control-sm"
+                                   placeholder="UUID do produto"/>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="buscarProdutoPorId()">
+                                <i class="bi bi-search"></i> Buscar
+                            </button>
+                        </div>
+                        <small class="text-muted" style="font-size:.75rem;">Preenche automaticamente nome/SKU/preço</small>
+                    </div>
+                    <div id="alertaProduto" class="col-md-8" style="display:none;">
+                        <div class="alert alert-sm alert-danger py-1 mb-0" id="alertaProdutoMsg" style="font-size:.8rem;"></div>
+                    </div>
+                </div>
+                <input type="hidden" name="produtoId" id="hiddenProdutoId"/>
                 <div class="row g-2 align-items-end">
                     <div class="col-md-4">
                         <label class="form-label form-label-sm mb-1">Produto *</label>
-                        <input type="text" name="nomeProduto" class="form-control form-control-sm"
+                        <input type="text" name="nomeProduto" id="inputNomeProduto" class="form-control form-control-sm"
                                placeholder="Nome do produto" required/>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label form-label-sm mb-1">SKU</label>
-                        <input type="text" name="skuProduto" class="form-control form-control-sm"
+                        <input type="text" name="skuProduto" id="inputSkuProduto" class="form-control form-control-sm"
                                placeholder="Opcional"/>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label form-label-sm mb-1">Preço unit. *</label>
-                        <input type="number" name="precoUnitario" class="form-control form-control-sm"
+                        <input type="number" name="precoUnitario" id="inputPrecoUnitario" class="form-control form-control-sm"
                                step="0.01" min="0.01" placeholder="0.00" required/>
                     </div>
                     <div class="col-md-1">
@@ -363,6 +381,45 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ── Histórico de Status ──────────────────────────────── -->
+    <div class="card mt-3" th:if="${!#lists.isEmpty(historico)}">
+        <div class="card-hd">
+            <i class="bi bi-clock-history"></i>Histórico de Status
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0" style="font-size:.875rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Data</th>
+                        <th>De</th>
+                        <th></th>
+                        <th>Para</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="h : ${historico}">
+                        <td class="text-muted"
+                            th:text="${#temporals.format(h.dataTransicao,'dd/MM/yyyy HH:mm:ss')}"></td>
+                        <td>
+                            <span class="sbadge" th:if="${h.statusAnterior != null}"
+                                  th:classappend="'sb-' + ${h.statusAnterior.name()}"
+                                  th:text="${h.statusAnterior}"></span>
+                            <span th:if="${h.statusAnterior == null}" class="text-muted">—</span>
+                        </td>
+                        <td class="text-muted"><i class="bi bi-arrow-right"></i></td>
+                        <td>
+                            <span class="sbadge"
+                                  th:classappend="'sb-' + ${h.statusNovo.name()}"
+                                  th:text="${h.statusNovo}"></span>
+                        </td>
+                        <td class="text-muted" th:text="${h.motivo ?: '—'}"></td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -417,5 +474,31 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/global.js"></script>
+<script>
+function buscarProdutoPorId() {
+    const id = document.getElementById('inputProdutoId').value.trim();
+    const alertDiv = document.getElementById('alertaProduto');
+    const alertMsg = document.getElementById('alertaProdutoMsg');
+    if (!id) { return; }
+    fetch('/api/v1/produtos/' + id, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Produto não encontrado (status ' + r.status + ')');
+        return r.json();
+    })
+    .then(p => {
+        document.getElementById('hiddenProdutoId').value   = p.id;
+        document.getElementById('inputNomeProduto').value  = p.nome;
+        document.getElementById('inputSkuProduto').value   = p.sku  || '';
+        document.getElementById('inputPrecoUnitario').value = p.preco;
+        alertDiv.style.display = 'none';
+    })
+    .catch(err => {
+        alertMsg.textContent = err.message;
+        alertDiv.style.display = 'block';
+    });
+}
+</script>
 </body>
 </html>

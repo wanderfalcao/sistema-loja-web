@@ -17,6 +17,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -43,6 +44,7 @@ class ProdutoRestControllerTest {
     // ── GET /api/v1/produtos ──────────────────────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveListarProdutosComStatus200() throws Exception {
         ProdutoResponse r1 = buildResponse(UUID.randomUUID(), "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
         ProdutoResponse r2 = buildResponse(UUID.randomUUID(), "Mouse Gamer", "MOU-GAM-001", new BigDecimal("150.00"));
@@ -59,6 +61,7 @@ class ProdutoRestControllerTest {
     // ── GET /api/v1/produtos/{id} ─────────────────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveBuscarProdutoPorIdComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
@@ -71,6 +74,7 @@ class ProdutoRestControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveDevolverProblemDetail404QuandoProdutoNaoEncontrado() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.buscarDTO(id)).thenThrow(new ProdutoNaoEncontradoException(id));
@@ -83,6 +87,7 @@ class ProdutoRestControllerTest {
     // ── GET /api/v1/produtos/sku/{sku} ────────────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveBuscarProdutoPorSkuComStatus200() throws Exception {
         String sku = "MON-4K-ABCD";
         ProdutoResponse response = buildResponse(UUID.randomUUID(), "Monitor 4K", sku, new BigDecimal("2500.00"));
@@ -95,6 +100,7 @@ class ProdutoRestControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveDevolver422QuandoSkuNaoEncontrado() throws Exception {
         String sku = "SKU-INVALIDO";
         when(service.buscarPorSku(sku)).thenThrow(new DomainException("Produto não encontrado para SKU: " + sku));
@@ -107,6 +113,7 @@ class ProdutoRestControllerTest {
     // ── POST /api/v1/produtos ─────────────────────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveCriarProdutoValido201() throws Exception {
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor 4K", "Monitor 4K UHD",
@@ -124,6 +131,7 @@ class ProdutoRestControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveDevolver400QuandoRequestInvalido() throws Exception {
         String invalidJson = """
                 {"nome":"","preco":null,"estoque":0}
@@ -139,6 +147,7 @@ class ProdutoRestControllerTest {
     // ── PUT /api/v1/produtos/{id} ─────────────────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveAtualizarProdutoComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         ProdutoRequest request = new ProdutoRequest(
@@ -157,6 +166,7 @@ class ProdutoRestControllerTest {
     // ── DELETE /api/v1/produtos/{id} ──────────────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveRemoverProdutoComStatus204() throws Exception {
         UUID id = UUID.randomUUID();
         doNothing().when(service).remover(id);
@@ -170,6 +180,7 @@ class ProdutoRestControllerTest {
     // ── PATCH /api/v1/produtos/{id}/estoque ───────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveAjustarEstoqueComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         AjusteEstoqueRequest ajuste = new AjusteEstoqueRequest(TipoOperacaoEstoque.ENTRADA, 50);
@@ -185,6 +196,7 @@ class ProdutoRestControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveDevolver422QuandoDomainException() throws Exception {
         UUID id = UUID.randomUUID();
         AjusteEstoqueRequest ajuste = new AjusteEstoqueRequest(TipoOperacaoEstoque.SAIDA, 100);
@@ -199,6 +211,7 @@ class ProdutoRestControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveDevolver500QuandoExcecaoGenerica() throws Exception {
         when(service.listar(any(Pageable.class)))
                 .thenThrow(new RuntimeException("erro inesperado de infraestrutura"));
@@ -211,6 +224,7 @@ class ProdutoRestControllerTest {
     // ── PATCH /api/v1/produtos/{id}/promocao ──────────────────────────────────
 
     @Test
+    @WithMockUser
     void deveAtivarPromocaoComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         PromocaoRequest request = new PromocaoRequest(new java.math.BigDecimal("20"), null, null);
@@ -226,6 +240,7 @@ class ProdutoRestControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveEncerrarPromocaoRestComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
@@ -237,6 +252,7 @@ class ProdutoRestControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveDevolver400QuandoPercentualNulo() throws Exception {
         UUID id = UUID.randomUUID();
         String invalidJson = """

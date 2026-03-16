@@ -40,7 +40,8 @@ services:
 
   produto-service:
     build:
-      context: ./produto-service
+      context: .
+      dockerfile: ./produto-service/Dockerfile
     container_name: produto-service
     ports:
       - "8081:8081"
@@ -58,7 +59,8 @@ services:
 
   pedido-service:
     build:
-      context: ./pedido-service
+      context: .
+      dockerfile: ./pedido-service/Dockerfile
     container_name: pedido-service
     ports:
       - "8082:8082"

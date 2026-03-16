@@ -47,6 +47,26 @@
     <div class="table-card">
         <div class="table-card-hd">
             <h4><i class="bi bi-list-ul me-2 text-primary"></i>Produtos</h4>
+
+            <!-- Filtros -->
+            <form method="get" action="/produtos" class="ms-auto d-flex align-items-center gap-2 flex-wrap">
+                <input type="hidden" name="page" value="0"/>
+                <div class="input-group input-group-sm" style="width:200px;">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="busca" class="form-control form-control-sm"
+                           placeholder="Buscar por nome..." th:value="${busca}"/>
+                </div>
+                <select name="categoria" class="form-select form-select-sm" style="width:160px;" onchange="this.form.submit()">
+                    <option value="" th:selected="${categoriaSelecionada == null}">Todas as categorias</option>
+                    <option th:each="cat : ${categorias}"
+                            th:value="${cat.name()}"
+                            th:text="${cat.label}"
+                            th:selected="${categoriaSelecionada != null and categoriaSelecionada.name() == cat.name()}"></option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+                <a href="/produtos" class="btn btn-sm btn-outline-secondary">Limpar</a>
+                <span class="text-muted small" th:text="${page.totalElements} + ' produto(s)'"></span>
+            </form>
         </div>
 
         <div class="table-responsive-wrapper">
@@ -121,7 +141,7 @@
                     <td colspan="6">
                         <div class="empty-state">
                             <i class="bi bi-inbox display-5 d-block mb-2"></i>
-                            <span>Nenhum produto cadastrado ainda.</span>
+                            <span>Nenhum produto encontrado.</span>
                         </div>
                     </td>
                 </tr>
@@ -129,9 +149,46 @@
             </table>
         </div>
 
-        <div class="table-footer" th:if="${!#lists.isEmpty(produtos)}">
-            <span th:text="${#lists.size(produtos)} + ' produto(s) cadastrado(s)'"></span>
+        <!-- ── Paginação ──────────────────────────────── -->
+        <div class="pagination-bar" th:if="${page.totalPages > 0}">
+
+            <div class="pg-info"
+                 th:with="first=${page.number * page.size + 1}, last=${page.number * page.size + page.numberOfElements}">
+                <span th:text="${first}">1</span>–<span th:text="${last}">20</span> de <span th:text="${page.totalElements}">0</span>
+            </div>
+
+            <div class="pg-center">
+                <div class="pg-group" th:if="${page.totalPages > 1}">
+                    <a class="pg-btn pg-btn--arrow" th:classappend="${!page.hasPrevious()} ? 'pg-btn--off'"
+                       th:href="@{/produtos(page=${page.number - 1},size=${page.size},busca=${busca},categoria=${categoriaSelecionada})}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                    <a class="pg-btn" th:each="i : ${#numbers.sequence(pageStart, pageEnd)}"
+                       th:classappend="${i == page.number} ? 'pg-btn--cur'"
+                       th:href="@{/produtos(page=${i},size=${page.size},busca=${busca},categoria=${categoriaSelecionada})}"
+                       th:text="${i + 1}">1</a>
+                    <a class="pg-btn pg-btn--arrow" th:classappend="${!page.hasNext()} ? 'pg-btn--off'"
+                       th:href="@{/produtos(page=${page.number + 1},size=${page.size},busca=${busca},categoria=${categoriaSelecionada})}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="pg-right">
+                <span class="ctrl-label">Exibir</span>
+                <div class="ctrl-wrap">
+                    <select class="ctrl-select ctrl-select--sm"
+                            th:attr="data-busca=${busca},data-cat=${categoriaSelecionada}"
+                            onchange="location.href='/produtos?page=0&size='+this.value+(this.dataset.busca?'&busca='+encodeURIComponent(this.dataset.busca):'')+(this.dataset.cat?'&categoria='+this.dataset.cat:'')">
+                        <option value="10"  th:selected="${page.size == 10}">10 por página</option>
+                        <option value="20"  th:selected="${page.size == 20}">20 por página</option>
+                        <option value="50"  th:selected="${page.size == 50}">50 por página</option>
+                    </select>
+                    <i class="bi bi-chevron-down ctrl-caret"></i>
+                </div>
+            </div>
         </div>
+
     </div>
 
 </div>

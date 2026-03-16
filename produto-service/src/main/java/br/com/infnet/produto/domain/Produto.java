@@ -15,7 +15,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "produtos")
+@Table(name = "produtos", indexes = {
+        @Index(name = "idx_produto_sku",  columnList = "sku"),
+        @Index(name = "idx_produto_nome", columnList = "nome")
+})
 @Getter
 @Setter                          // gera setters para todos os campos…
 @NoArgsConstructor               // exigido pelo JPA e pelo MapStruct

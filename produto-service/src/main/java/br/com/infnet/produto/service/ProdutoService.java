@@ -78,7 +78,7 @@ public class ProdutoService implements CrudService<Produto, UUID> {
     public void remover(UUID id) {
         Produto produto = buscarPorId(id);
         if (produto.getEstoque() > 0)
-            throw new DomainException("Produto com estoque nao pode ser removido. Zere o estoque antes de excluir.");
+            throw new DomainException("Produto com estoque não pode ser removido. Zere o estoque antes de excluir.");
         repository.deleteById(id);
     }
 
@@ -86,12 +86,12 @@ public class ProdutoService implements CrudService<Produto, UUID> {
 
     public ProdutoResponse criarDTO(ProdutoRequest request) {
         if (repository.existsByNomeIgnoreCase(request.getNome()))
-            throw new DomainException("Produto com este nome ja existe: " + request.getNome());
+            throw new DomainException("Produto com este nome já existe: " + request.getNome());
 
         Produto produto = ProdutoFactory.criar(request);
 
         if (repository.existsBySkuIgnoreCase(produto.getSku()))
-            throw new DomainException("SKU ja cadastrado: " + produto.getSku());
+            throw new DomainException("SKU já cadastrado: " + produto.getSku());
 
         if (Boolean.TRUE.equals(produto.getAtivo()) && produto.getEstoque() == 0)
             throw new DomainException("Produto ativo deve ter estoque maior que zero.");
@@ -108,7 +108,7 @@ public class ProdutoService implements CrudService<Produto, UUID> {
         Produto produto = buscarPorId(id);
 
         if (repository.existsByNomeIgnoreCaseAndIdNot(request.getNome(), id))
-            throw new DomainException("Produto com este nome ja existe: " + request.getNome());
+            throw new DomainException("Produto com este nome já existe: " + request.getNome());
 
         ProdutoFactory.atualizar(produto, request);
 
@@ -121,6 +121,12 @@ public class ProdutoService implements CrudService<Produto, UUID> {
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listar(Pageable pageable) {
         return repository.findAllByAtivo(true, pageable).map(mapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Produto> filtrar(String nome, CategoriaProduto categoria, Pageable pageable) {
+        String nomeNorm = (nome != null && !nome.isBlank()) ? nome.trim() : null;
+        return repository.filtrar(nomeNorm, categoria, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -138,7 +144,7 @@ public class ProdutoService implements CrudService<Produto, UUID> {
 
         if (operacao == TipoOperacaoEstoque.SAIDA) {
             if (!Boolean.TRUE.equals(produto.getAtivo()))
-                throw new DomainException("Saida de estoque nao permitida para produto inativo.");
+                throw new DomainException("Saída de estoque não permitida para produto inativo.");
             if (produto.getEstoque() < quantidade)
                 throw new DomainException("Estoque insuficiente. Disponivel: " + produto.getEstoque());
             produto.setEstoque(produto.getEstoque() - quantidade);

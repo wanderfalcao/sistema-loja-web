@@ -1,21 +1,24 @@
 package br.com.infnet.pedido.fuzz;
 
+import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusPedido;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.pedido.repository.PedidoRepository;
-import br.com.infnet.client.ProdutoServiceClient;
+import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.pedido.service.PedidoService;
 import br.com.infnet.shared.exception.DomainException;
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.*;
+import net.jqwik.api.constraints.BigRange;
+import net.jqwik.api.constraints.StringLength;
 import org.mockito.Mockito;
 
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -25,8 +28,9 @@ class PedidoFuzzTest {
         PedidoRepository repo = Mockito.mock(PedidoRepository.class);
         PedidoMapper mapper = Mockito.mock(PedidoMapper.class);
         ProdutoServiceClient produtoServiceClient = Mockito.mock(ProdutoServiceClient.class);
+        StatusHistoricoRepository statusRepo = Mockito.mock(StatusHistoricoRepository.class);
         when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
-        return new PedidoService(repo, mapper, produtoServiceClient);
+        return new PedidoService(repo, mapper, produtoServiceClient, statusRepo);
     }
 
     @Property
@@ -88,7 +92,7 @@ class PedidoFuzzTest {
     @Property
     void descricao_comMaisDe255Chars_sempreLancaDomainException(
             @ForAll @StringLength(min = Pedido.MAX_DESCRICAO + 1, max = 1000)
-            @AlphaChars String descricao) {
+            String descricao) {
 
         assertThatThrownBy(() -> newService().criar(descricao, new BigDecimal("1.00")))
                 .isInstanceOf(DomainException.class);
@@ -96,13 +100,14 @@ class PedidoFuzzTest {
 
     @Property
     void pedido_idEDataCriacao_saoImutaveis(
-            @ForAll @AlphaChars @StringLength(min = 1, max = 50) String descricao) {
+            @ForAll @StringLength(min = 1, max = 50) String descricao) {
 
         PedidoRepository repo = Mockito.mock(PedidoRepository.class);
         PedidoMapper mapper = Mockito.mock(PedidoMapper.class);
         ProdutoServiceClient produtoServiceClient = Mockito.mock(ProdutoServiceClient.class);
+        StatusHistoricoRepository statusRepo = Mockito.mock(StatusHistoricoRepository.class);
         when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
-        PedidoService service = new PedidoService(repo, mapper, produtoService);
+        PedidoService service = new PedidoService(repo, mapper, produtoServiceClient, statusRepo);
 
         Pedido p = service.criar(descricao, new BigDecimal("5.00"));
         UUID idOriginal = p.getId();

@@ -1,7 +1,6 @@
 package br.com.infnet.produto.controller;
 
 import br.com.infnet.controller.GlobalExceptionHandler;
-import br.com.infnet.produto.domain.CategoriaProduto;
 import br.com.infnet.produto.domain.Produto;
 import br.com.infnet.produto.domain.exception.ProdutoNaoEncontradoException;
 import br.com.infnet.produto.dto.ProdutoResponse;
@@ -13,6 +12,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -21,7 +21,8 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = {ProdutoController.class, GlobalExceptionHandler.class})
@@ -34,6 +35,7 @@ class ProdutoControllerTest {
     private ProdutoService service;
 
     @Test
+    @WithMockUser
     void deveRetornarListaDeProdutosComStatus200() throws Exception {
         when(service.listarTodos()).thenReturn(List.of(
                 Produto.novo("Monitor", "MON-001", new BigDecimal("2500.0")),
@@ -47,6 +49,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveExibirFormularioDeNovoProduto() throws Exception {
         mockMvc.perform(get("/produtos/novo"))
                 .andExpect(status().isOk())
@@ -61,6 +64,7 @@ class ProdutoControllerTest {
         "Teclado,        350.00",
         "Mouse Gamer,    199.90"
     })
+    @WithMockUser
     void deveCadastrarProdutoERedirecionarParaLista(String nome, BigDecimal preco) throws Exception {
         when(service.cadastrar(eq(nome.trim()), eq(preco), any(), any(), any(), any()))
                 .thenReturn(Produto.novo(nome.trim(), "SKU-AUTO", preco));
@@ -73,6 +77,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveExibirDetalheComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         Produto produto = Produto.novo("Monitor", "MON-XXXX", new BigDecimal("2500.0"));
@@ -85,6 +90,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveRedirecionarComErroQuandoDetalheProdutoNaoEncontrado() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.buscarPorId(id)).thenThrow(new ProdutoNaoEncontradoException(id));
@@ -95,6 +101,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveExibirFormularioPreenchidoParaEdicao() throws Exception {
         UUID id = UUID.randomUUID();
         Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.0"));
@@ -109,6 +116,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveAtualizarProdutoERedirecionarParaLista() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.atualizar(eq(id), eq("Monitor Atualizado"), any(BigDecimal.class), any(), any(), any(), any(), any()))
@@ -122,6 +130,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveExcluirProdutoERedirecionarParaLista() throws Exception {
         UUID id = UUID.randomUUID();
         doNothing().when(service).remover(id);
@@ -132,6 +141,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveRedirecionarComErroQuandoProdutoNaoEncontradoNaEdicao() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.buscarPorId(id)).thenThrow(new ProdutoNaoEncontradoException(id));
@@ -142,6 +152,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveExibirFormComErroQuandoCadastrarFalha() throws Exception {
         when(service.cadastrar(anyString(), any(BigDecimal.class), any(), any(), any(), any()))
                 .thenThrow(new DomainException("Nome obrigatorio"));
@@ -155,6 +166,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveExibirFormComErroQuandoAtualizarFalha() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.atualizar(eq(id), anyString(), any(BigDecimal.class), any(), any(), any(), any(), any()))
@@ -169,6 +181,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveRedirecionarComErroQuandoDomainExceptionEscapaDoExcluir() throws Exception {
         UUID id = UUID.randomUUID();
         doThrow(new DomainException("Produto em uso")).when(service).remover(id);
@@ -179,6 +192,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveAtivarPromocaoERedirecionarParaDetalhe() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(new ProdutoResponse());
@@ -190,6 +204,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveAtivarPromocaoComDatasERedirecionarParaDetalhe() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(new ProdutoResponse());
@@ -203,6 +218,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveRedirecionarComErroQuandoAtivarPromocaoFalha() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.ativarPromocao(eq(id), any(), any(), any()))
@@ -215,6 +231,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveEncerrarPromocaoERedirecionarParaDetalhe() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.encerrarPromocao(id)).thenReturn(new ProdutoResponse());
@@ -225,6 +242,7 @@ class ProdutoControllerTest {
     }
 
     @Test
+    @WithMockUser
     void deveRedirecionarComErroQuandoEncerrarPromocaoFalha() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.encerrarPromocao(id)).thenThrow(new DomainException("Sem promocao ativa"));

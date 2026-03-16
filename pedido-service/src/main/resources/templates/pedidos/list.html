@@ -74,9 +74,33 @@
             <i class="bi bi-list-ul"></i>Lista de Pedidos
 
             <div class="ms-auto d-flex align-items-center gap-3">
-                <form method="get" action="/pedidos" class="d-flex align-items-center gap-2">
+                <form method="get" action="/pedidos" class="d-flex align-items-center gap-2 flex-wrap">
                     <input type="hidden" name="page" value="0"/>
                     <input type="hidden" name="size" th:value="${page.size}"/>
+                    <input type="hidden" name="sort" th:value="${sortField + ',' + sortDir}"/>
+
+                    <!-- Busca por descrição -->
+                    <div class="input-group input-group-sm" style="width:200px;">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" name="busca" class="form-control form-control-sm"
+                               placeholder="Buscar descrição..." th:value="${busca}"/>
+                    </div>
+
+                    <!-- Filtro por status -->
+                    <div class="ctrl-wrap">
+                        <select name="filtroStatus" class="ctrl-select" onchange="this.form.submit()">
+                            <option value="" th:selected="${filtroStatus == null}">Todos os status</option>
+                            <option th:each="s : ${status}"
+                                    th:value="${s.name()}"
+                                    th:text="${s.name()}"
+                                    th:selected="${filtroStatus != null and filtroStatus.name() == s.name()}"></option>
+                        </select>
+                        <i class="bi bi-chevron-down ctrl-caret"></i>
+                    </div>
+
+                    <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+                    <a href="/pedidos" class="btn btn-sm btn-outline-secondary">Limpar</a>
+
                     <span class="ctrl-label"><i class="bi bi-arrow-down-up"></i> Ordenar</span>
                     <div class="ctrl-wrap">
                         <select name="sort" class="ctrl-select" onchange="this.form.submit()">
@@ -267,15 +291,15 @@
             <div class="pg-center">
                 <div class="pg-group" th:if="${page.totalPages > 1}">
                     <a class="pg-btn pg-btn--arrow" th:classappend="${!page.hasPrevious()} ? 'pg-btn--off'"
-                       th:href="@{/pedidos(page=${page.number - 1},size=${page.size},sort=${sortField + ',' + sortDir})}">
+                       th:href="@{/pedidos(page=${page.number - 1},size=${page.size},sort=${sortField + ',' + sortDir},busca=${busca},filtroStatus=${filtroStatus})}">
                         <i class="bi bi-chevron-left"></i>
                     </a>
                     <a class="pg-btn" th:each="i : ${#numbers.sequence(pageStart, pageEnd)}"
                        th:classappend="${i == page.number} ? 'pg-btn--cur'"
-                       th:href="@{/pedidos(page=${i},size=${page.size},sort=${sortField + ',' + sortDir})}"
+                       th:href="@{/pedidos(page=${i},size=${page.size},sort=${sortField + ',' + sortDir},busca=${busca},filtroStatus=${filtroStatus})}"
                        th:text="${i + 1}">1</a>
                     <a class="pg-btn pg-btn--arrow" th:classappend="${!page.hasNext()} ? 'pg-btn--off'"
-                       th:href="@{/pedidos(page=${page.number + 1},size=${page.size},sort=${sortField + ',' + sortDir})}">
+                       th:href="@{/pedidos(page=${page.number + 1},size=${page.size},sort=${sortField + ',' + sortDir},busca=${busca},filtroStatus=${filtroStatus})}">
                         <i class="bi bi-chevron-right"></i>
                     </a>
                 </div>

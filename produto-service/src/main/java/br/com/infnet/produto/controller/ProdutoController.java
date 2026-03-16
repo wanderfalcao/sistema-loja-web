@@ -5,6 +5,9 @@ import br.com.infnet.produto.domain.Produto;
 import br.com.infnet.produto.domain.exception.ProdutoNaoEncontradoException;
 import br.com.infnet.produto.service.ProdutoService;
 import br.com.infnet.shared.exception.DomainException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -29,8 +32,24 @@ public class ProdutoController {
     // ── Consultas ─────────────────────────────────────────────────────────────
 
     @GetMapping
-    public String listar(Model model) {
-        model.addAttribute("produtos", service.listarTodos());
+    public String listar(@RequestParam(required = false) String busca,
+                         @RequestParam(required = false) CategoriaProduto categoria,
+                         @PageableDefault(size = 20, sort = "nome") Pageable pageable,
+                         Model model) {
+        Page<Produto> page = service.filtrar(busca, categoria, pageable);
+
+        int pageStart = Math.max(0, page.getNumber() - 2);
+        int pageEnd   = page.getTotalPages() > 0
+                ? Math.min(page.getTotalPages() - 1, page.getNumber() + 2)
+                : 0;
+
+        model.addAttribute("produtos",           page.getContent());
+        model.addAttribute("page",               page);
+        model.addAttribute("busca",              busca);
+        model.addAttribute("categoriaSelecionada", categoria);
+        model.addAttribute("categorias",         CategoriaProduto.values());
+        model.addAttribute("pageStart",          pageStart);
+        model.addAttribute("pageEnd",            pageEnd);
         return "produtos/lista";
     }
 

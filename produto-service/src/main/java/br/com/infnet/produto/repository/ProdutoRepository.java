@@ -39,4 +39,11 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
 
     // Verifica se há produtos ativos em uma categoria
     boolean existsByCategoriaAndAtivoTrue(CategoriaProduto categoria);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM Produto p WHERE " +
+            "(:nome IS NULL OR LOWER(p.nome) LIKE LOWER(CONCAT('%',:nome,'%'))) AND " +
+            "(:categoria IS NULL OR p.categoria = :categoria)")
+    Page<Produto> filtrar(@org.springframework.data.repository.query.Param("nome") String nome,
+                          @org.springframework.data.repository.query.Param("categoria") CategoriaProduto categoria,
+                          Pageable pageable);
 }
