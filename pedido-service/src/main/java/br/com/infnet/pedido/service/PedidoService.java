@@ -2,6 +2,7 @@ package br.com.infnet.pedido.service;
 
 import br.com.infnet.pedido.domain.ItemPedido;
 import br.com.infnet.pedido.domain.Pedido;
+import br.com.infnet.pedido.domain.StatusHistorico;
 import br.com.infnet.pedido.domain.StatusPedido;
 import br.com.infnet.pedido.domain.exception.PedidoNaoEncontradoException;
 import br.com.infnet.pedido.dto.ContestarRequest;
@@ -11,11 +12,15 @@ import br.com.infnet.pedido.dto.PedidoResponse;
 import br.com.infnet.pedido.factory.ItemPedidoFactory;
 import br.com.infnet.pedido.factory.PedidoFactory;
 import br.com.infnet.pedido.mapper.PedidoMapper;
+import br.com.infnet.client.ProdutoInfo;
 import br.com.infnet.client.ProdutoServiceClient;
+import br.com.infnet.client.TipoOperacaoEstoque;
 import br.com.infnet.pedido.repository.PedidoRepository;
+import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.shared.exception.DomainException;
 import br.com.infnet.shared.service.CrudService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PedidoService implements CrudService<Pedido, UUID> {
@@ -41,6 +47,7 @@ public class PedidoService implements CrudService<Pedido, UUID> {
     private final PedidoRepository repository;
     private final PedidoMapper mapper;
     private final ProdutoServiceClient produtoServiceClient;
+    private final StatusHistoricoRepository statusHistoricoRepository;
 
     @Transactional(readOnly = true)
     public List<Pedido> listar() {
@@ -50,6 +57,13 @@ public class PedidoService implements CrudService<Pedido, UUID> {
     @Transactional(readOnly = true)
     public Page<Pedido> listarPaginado(Pageable pageable) {
         return repository.findAll(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Pedido> listarPaginadoComFiltros(StatusPedido filtroStatus, String busca, Pageable pageable) {
+        String buscaNorm = (busca != null && !busca.isBlank()) ? busca.trim() : null;
+        StatusPedido statusNorm = filtroStatus;
+        return repository.filtrar(statusNorm, buscaNorm, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -131,6 +145,11 @@ public class PedidoService implements CrudService<Pedido, UUID> {
         return soma != null ? soma : BigDecimal.ZERO;
     }
 
+    @Transactional(readOnly = true)
+    public List<StatusHistorico> buscarHistorico(UUID pedidoId) {
+        return statusHistoricoRepository.findAllByPedidoIdOrderByDataTransicaoAsc(pedidoId);
+    }
+
     @Transactional
     public Pedido criar(String descricao, BigDecimal valor) {
         return criar(descricao, valor, null);
@@ -177,24 +196,25 @@ public class PedidoService implements CrudService<Pedido, UUID> {
         }
         validarTransicao(atual, novoStatus);
 
+        log.info("Pedido {} transicionando {} → {}", id, atual, novoStatus);
+
         // Baixa de estoque ao processar (chamada HTTP ao produto-service)
         if (atual == StatusPedido.PENDENTE && novoStatus == StatusPedido.PROCESSANDO) {
-            pedido.getItens().stream()
-                  .filter(i -> i.getProdutoId() != null)
-                  .forEach(i -> produtoServiceClient.ajustarEstoque(
-                      i.getProdutoId(), "SAIDA", i.getQuantidade()));
+            debitarEstoque(pedido);
         }
         // Devolução de estoque ao cancelar (chamada HTTP ao produto-service)
         if (atual == StatusPedido.PROCESSANDO && novoStatus == StatusPedido.CANCELADO) {
-            pedido.getItens().stream()
-                  .filter(i -> i.getProdutoId() != null)
-                  .forEach(i -> produtoServiceClient.ajustarEstoque(
-                      i.getProdutoId(), "ENTRADA", i.getQuantidade()));
+            devolverEstoque(pedido);
         }
 
         pedido.setStatus(novoStatus);
         pedido.setDataAtualizacao(LocalDateTime.now());
-        return repository.save(pedido);
+        Pedido salvo = repository.save(pedido);
+
+        statusHistoricoRepository.save(new StatusHistorico(salvo, atual, novoStatus, null));
+        log.info("Histórico de status registrado: pedido={} {} → {}", id, atual, novoStatus);
+
+        return salvo;
     }
 
     @Transactional
@@ -203,11 +223,17 @@ public class PedidoService implements CrudService<Pedido, UUID> {
             throw new DomainException(MSG_MOTIVO_OBRIGATORIO);
         }
         Pedido pedido = buscar(id);
-        validarTransicao(pedido.getStatus(), StatusPedido.CONTESTADO);
+        StatusPedido atual = pedido.getStatus();
+        validarTransicao(atual, StatusPedido.CONTESTADO);
         pedido.setStatus(StatusPedido.CONTESTADO);
         pedido.setObservacao(motivo.trim());
         pedido.setDataAtualizacao(LocalDateTime.now());
-        return repository.save(pedido);
+        Pedido salvo = repository.save(pedido);
+
+        statusHistoricoRepository.save(new StatusHistorico(salvo, atual, StatusPedido.CONTESTADO, motivo.trim()));
+        log.info("Pedido {} contestado. Motivo: {}", id, motivo.trim());
+
+        return salvo;
     }
 
     @Transactional
@@ -215,6 +241,20 @@ public class PedidoService implements CrudService<Pedido, UUID> {
         Pedido pedido = buscar(pedidoId);
         if (pedido.getStatus() != StatusPedido.PENDENTE) {
             throw new DomainException("Itens só podem ser adicionados a pedidos PENDENTE.");
+        }
+        // Auto-enriquecimento: busca dados oficiais do produto-service quando produtoId fornecido
+        if (request.getProdutoId() != null) {
+            ProdutoInfo info = produtoServiceClient.buscarProduto(request.getProdutoId());
+            if (!info.isAtivo()) {
+                throw new DomainException("Produto inativo não pode ser adicionado ao pedido.");
+            }
+            request.setNomeProduto(info.getNome());
+            request.setSkuProduto(info.getSku());
+            request.setPrecoUnitario(info.getPreco());
+            log.info("Item enriquecido com dados do produto-service: id={}, nome={}", request.getProdutoId(), info.getNome());
+        }
+        if (request.getNomeProduto() == null || request.getNomeProduto().isBlank()) {
+            throw new DomainException("Nome do produto é obrigatório.");
         }
         ItemPedido item = ItemPedidoFactory.criar(pedido, request);
         pedido.getItens().add(item);
@@ -235,6 +275,20 @@ public class PedidoService implements CrudService<Pedido, UUID> {
     public void deletar(UUID id) {
         Pedido pedido = buscar(id);
         repository.delete(pedido);
+    }
+
+    private void debitarEstoque(Pedido pedido) {
+        pedido.getItens().stream()
+              .filter(i -> i.getProdutoId() != null)
+              .forEach(i -> produtoServiceClient.ajustarEstoque(
+                  i.getProdutoId(), TipoOperacaoEstoque.SAIDA, i.getQuantidade()));
+    }
+
+    private void devolverEstoque(Pedido pedido) {
+        pedido.getItens().stream()
+              .filter(i -> i.getProdutoId() != null)
+              .forEach(i -> produtoServiceClient.ajustarEstoque(
+                  i.getProdutoId(), TipoOperacaoEstoque.ENTRADA, i.getQuantidade()));
     }
 
     private void validarTransicao(StatusPedido atual, StatusPedido novo) {

@@ -1,14 +1,18 @@
 package br.com.infnet.pedido.service;
 
+import br.com.infnet.client.ProdutoInfo;
+import br.com.infnet.client.TipoOperacaoEstoque;
 import br.com.infnet.pedido.dto.ItemPedidoRequest;
 import br.com.infnet.pedido.dto.PedidoResponse;
 import br.com.infnet.pedido.factory.PedidoTestFactory;
 import br.com.infnet.pedido.domain.Pedido;
+import br.com.infnet.pedido.domain.StatusHistorico;
 import br.com.infnet.pedido.domain.StatusPedido;
 import br.com.infnet.pedido.domain.exception.PedidoNaoEncontradoException;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
+import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.shared.exception.DomainException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +28,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +43,9 @@ class PedidoServiceTest {
 
     @Mock
     ProdutoServiceClient produtoServiceClient;
+
+    @Mock
+    StatusHistoricoRepository statusHistoricoRepository;
 
     @InjectMocks
     PedidoService service;
@@ -339,5 +348,74 @@ class PedidoServiceTest {
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("PENDENTE");
         verify(repository, never()).save(any());
+    }
+
+    private ProdutoInfo produtoInfoAtivo(UUID id, String nome, String sku, BigDecimal preco) {
+        ProdutoInfo info = new ProdutoInfo();
+        info.setId(id);
+        info.setNome(nome);
+        info.setSku(sku);
+        info.setPreco(preco);
+        info.setAtivo(true);
+        info.setEstoque(10);
+        return info;
+    }
+
+    @Test
+    void avancarStatus_pendenteParaProcessando_comProdutoId_chamaDebitoEstoque() {
+        UUID produtoId = UUID.randomUUID();
+        ProdutoInfo info = produtoInfoAtivo(produtoId, "Monitor", "MON-001", new BigDecimal("1500.00"));
+        when(produtoServiceClient.buscarProduto(produtoId)).thenReturn(info);
+
+        ItemPedidoRequest req = new ItemPedidoRequest(produtoId, "Monitor", "MON-001",
+                new BigDecimal("1500.00"), 2);
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(statusHistoricoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(mapper.toResponse(any())).thenReturn(null);
+        service.adicionarItem(id, req);
+
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        service.avancarStatus(id, StatusPedido.PROCESSANDO);
+
+        verify(produtoServiceClient).ajustarEstoque(eq(produtoId), eq(TipoOperacaoEstoque.SAIDA), eq(2));
+    }
+
+    @Test
+    void avancarStatus_processandoParaCancelado_comProdutoId_chamaEstornoEstoque() {
+        UUID produtoId = UUID.randomUUID();
+        ProdutoInfo info = produtoInfoAtivo(produtoId, "Teclado", "TEC-001", new BigDecimal("300.00"));
+        when(produtoServiceClient.buscarProduto(produtoId)).thenReturn(info);
+
+        ItemPedidoRequest req = new ItemPedidoRequest(produtoId, "Teclado", "TEC-001",
+                new BigDecimal("300.00"), 1);
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(statusHistoricoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(mapper.toResponse(any())).thenReturn(null);
+        service.adicionarItem(id, req);
+
+        // Advance to PROCESSANDO first
+        pedidoPendente.setStatus(StatusPedido.PROCESSANDO);
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        service.avancarStatus(id, StatusPedido.CANCELADO);
+
+        verify(produtoServiceClient).ajustarEstoque(eq(produtoId), eq(TipoOperacaoEstoque.ENTRADA), eq(1));
+    }
+
+    @Test
+    void avancarStatus_pendenteParaProcessando_semProdutoId_naoChama() {
+        ItemPedidoRequest req = new ItemPedidoRequest(null, "Produto sem ID", null,
+                new BigDecimal("50.00"), 1);
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(statusHistoricoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(mapper.toResponse(any())).thenReturn(null);
+        service.adicionarItem(id, req);
+
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        service.avancarStatus(id, StatusPedido.PROCESSANDO);
+
+        verify(produtoServiceClient, never()).ajustarEstoque(any(), any(), anyInt());
     }
 }

@@ -15,6 +15,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProdutoServiceClientImpl implements ProdutoServiceClient {
 
+    private static final String PRODUTOS_PATH = "/api/v1/produtos/";
+
     private final RestTemplate restTemplate;
 
     @Value("${produto.service.url:http://produto-service:8081}")
@@ -22,7 +24,7 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
 
     @Override
     public ProdutoInfo buscarProduto(UUID id) {
-        String url = produtoServiceUrl + "/api/v1/produtos/" + id;
+        String url = produtoServiceUrl + PRODUTOS_PATH + id;
         try {
             return restTemplate.getForObject(url, ProdutoInfo.class);
         } catch (HttpClientErrorException.NotFound e) {
@@ -34,8 +36,8 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
     }
 
     @Override
-    public void ajustarEstoque(UUID id, String operacao, int quantidade) {
-        String url = produtoServiceUrl + "/api/v1/produtos/" + id + "/estoque";
+    public void ajustarEstoque(UUID id, TipoOperacaoEstoque operacao, int quantidade) {
+        String url = produtoServiceUrl + PRODUTOS_PATH + id + "/estoque";
         EstoqueAjusteRequest request = new EstoqueAjusteRequest(operacao, quantidade);
         try {
             restTemplate.patchForObject(url, request, Void.class);

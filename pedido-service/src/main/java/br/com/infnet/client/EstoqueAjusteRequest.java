@@ -6,6 +6,6 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class EstoqueAjusteRequest {
-    private String operacao;
+    private TipoOperacaoEstoque operacao;
     private int quantidade;
 }
