@@ -1,0 +1,109 @@
+:root {
+    --bg:              #F0F2F5;
+    --surface:         #FFFFFF;
+    --primary:         #1A2744;
+    --primary-btn:     #3B5BDB;
+    --text:            #1C1C1E;
+    --muted:           #6B7280;
+    --border:          #E5E7EB;
+    --c-ativo:         #059669;
+    --c-inativo:       #9CA3AF;
+    --c-danger:        #EF4444;
+    --c-pendente:      #9CA3AF;
+    --c-processando:   #D97706;
+    --c-concluido:     #059669;
+    --c-contestado:    #DC4A0F;
+    --c-cancelado:     #EF4444;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Topbar ──────────────────────────────────────────────── */
+.topbar {
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .75rem 1.5rem;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+.topbar-brand {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.topbar-brand:hover { color: #e0e7ff; }
+
+.btn-new {
+    background: var(--primary-btn);
+    color: #fff;
+    border: none;
+    padding: .4rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: .875rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s;
+}
+.btn-new:hover { background: #3451c4; color: #fff; }
+
+/* ── Layout principal ────────────────────────────────────── */
+.main {
+    flex: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+    width: 100%;
+}
+
+/* ── Alertas ─────────────────────────────────────────────── */
+.alert { border-left: 4px solid; }
+.alert-success { border-color: var(--c-ativo); }
+.alert-danger  { border-color: var(--c-danger); }
+
+/* ── Breadcrumb ──────────────────────────────────────────── */
+.breadcrumb { font-size: .875rem; }
+
+/* ── Footer ──────────────────────────────────────────────── */
+.app-footer {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: .75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    font-size: .75rem;
+    color: var(--muted);
+}
+.app-footer i { font-size: .85rem; opacity: .7; }
+.app-footer-dot { color: var(--border); }
+
+/* ── Responsivo — mobile first ───────────────────────────── */
+@media (max-width: 768px) {
+    .main    { padding: 1rem .75rem; }
+    .topbar  { padding: .6rem 1rem; }
+}
+@media (max-width: 480px) {
+    .topbar-brand { font-size: 1rem; }
+    .btn-new { font-size: .8rem; padding: .35rem .75rem; }
+}

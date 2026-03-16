@@ -20,12 +20,19 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build e testes
+      - name: Build e testes (todos os módulos)
         run: mvn verify -B
 
-      - name: Upload relatório JaCoCo
+      - name: Upload JaCoCo — produto-service
         uses: actions/upload-artifact@v4
         with:
-          name: jacoco-report
-          path: target/site/jacoco/
+          name: jacoco-produto-service
+          path: produto-service/target/site/jacoco/
+        if: always()
+
+      - name: Upload JaCoCo — pedido-service
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-pedido-service
+          path: pedido-service/target/site/jacoco/
         if: always()

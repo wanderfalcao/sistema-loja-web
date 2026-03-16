@@ -1,0 +1,36 @@
+.form-card {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    padding: 2rem;
+}
+.form-card .form-label { font-weight: 600; font-size: .9rem; }
+
+.form-control:focus {
+    border-color: var(--primary-btn);
+    box-shadow: 0 0 0 .2rem rgba(59,91,219,.15);
+}
+
+.btn-primary-custom {
+    background: var(--primary-btn);
+    border: none;
+    color: #fff;
+    padding: .5rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 500;
+}
+.btn-primary-custom:hover { background: #3451c4; color: #fff; }
+
+.btn-secondary-custom {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: .5rem 1.5rem;
+    border-radius: 6px;
+}
+
+@media (max-width: 576px) {
+    .form-card { padding: 1.25rem; border-radius: 8px; }
+    .btn-primary-custom,
+    .btn-secondary-custom { width: 100%; text-align: center; }
+}

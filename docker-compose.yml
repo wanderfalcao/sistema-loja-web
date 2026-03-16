@@ -1,50 +1,95 @@
 services:
 
-  db:
+  # ── Bancos de dados ────────────────────────────────────────────────────────
+
+  produto-db:
     image: postgres:16-alpine
-    container_name: loja-db
+    container_name: produto-db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
-      POSTGRES_DB: loja_db
+      POSTGRES_DB: produto_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - loja_pgdata:/var/lib/postgresql/data
+      - produto_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d loja_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d produto_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  app:
-    build: .
-    container_name: loja-app
+  pedido-db:
+    image: postgres:16-alpine
+    container_name: pedido-db
     ports:
-      - "8080:8080"
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: pedido_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pedido_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pedido_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Microsserviços ─────────────────────────────────────────────────────────
+
+  produto-service:
+    build:
+      context: ./produto-service
+    container_name: produto-service
+    ports:
+      - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
-      db:
+      produto-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
       interval: 15s
-      timeout: 5s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 40s
+
+  pedido-service:
+    build:
+      context: ./pedido-service
+    container_name: pedido-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      pedido-db:
+        condition: service_healthy
+      produto-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ── Administração ──────────────────────────────────────────────────────────
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: loja-pgadmin
+    container_name: pgadmin
     ports:
       - "5050:80"
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@loja.com
       PGADMIN_DEFAULT_PASSWORD: admin
     depends_on:
-      db:
-        condition: service_healthy
+      - produto-db
+      - pedido-db
 
 volumes:
-  loja_pgdata:
+  produto_db_data:
+  pedido_db_data:
