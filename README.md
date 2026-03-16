@@ -192,7 +192,7 @@ mvn test -pl pedido-service -B
 mvn test -pl pedido-service -Dtest=PedidoServiceTest -B
 ```
 
-### Suite de testes — produto-service (~95 testes)
+### Suite de testes — produto-service (~95 testes unitários + 15 E2E)
 
 | Classe | Tipo | Testes |
 |--------|------|--------|
@@ -202,8 +202,9 @@ mvn test -pl pedido-service -Dtest=PedidoServiceTest -B
 | `ProdutoTest` | Domínio (entidade) | 20 |
 | `SkuGeneratorTest` | Utilitário | 11 |
 | `CategoriaProdutoTest` | Enum | 3 |
+| `ProdutoSeleniumTest` | Selenium E2E (`@Tag("selenium")`) | 15 |
 
-### Suite de testes — pedido-service (~165 testes)
+### Suite de testes — pedido-service (~165 testes unitários + 18 E2E)
 
 | Classe | Tipo | Testes |
 |--------|------|--------|
@@ -216,6 +217,19 @@ mvn test -pl pedido-service -Dtest=PedidoServiceTest -B
 | `PedidoMapperTest` | MapStruct | 9 |
 | `ItemPedidoTest` | Domínio (item) | 9 |
 | `PedidoFuzzTest` | jqwik property-based | 6 |
+| `PedidoSeleniumTest` | Selenium E2E (`@Tag("selenium")`) | 18 |
+
+### Selenium E2E
+
+Os testes Selenium usam Chrome headless e são excluídos do ciclo `mvn verify` padrão para evitar dependência de browser no CI de build. Executar separadamente:
+
+```bash
+# Requer Chrome instalado na máquina
+mvn test -pl produto-service -Dgroups=selenium -B
+mvn test -pl pedido-service  -Dgroups=selenium -B
+```
+
+Os testes do `PedidoSeleniumTest` isolam o `ProdutoServiceClient` via `@MockBean` para não depender do produto-service em execução.
 
 ### Cobertura JaCoCo
 
@@ -229,10 +243,10 @@ start produto-service\target\site\jacoco\index.html
 start pedido-service\target\site\jacoco\index.html
 ```
 
-| Módulo | Mínimo | Meta |
-|--------|--------|------|
-| produto-service | 85% LINE | ≥ 85% |
-| pedido-service | 85% LINE | ≥ 85% |
+| Módulo | Mínimo configurado | Cobertura obtida |
+|--------|-------------------|-----------------|
+| produto-service | 90% LINE | ≥ 90% |
+| pedido-service | 90% LINE | ≥ 90% |
 
 ---
 
