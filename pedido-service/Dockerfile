@@ -13,6 +13,10 @@ RUN mvn -pl pedido-service -am package
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# Usuário não-root por boas práticas de segurança
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
 # Copia o JAR gerado do módulo específico
 COPY --from=build /app/pedido-service/target/*.jar app.jar
 

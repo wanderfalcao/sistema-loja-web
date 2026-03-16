@@ -1,0 +1,14 @@
+.git/
+.idea/
+.vscode/
+.github/
+
+**/target/
+**/*.class
+**/*.log
+
+.env
+.env.*
+*.iml
+.DS_Store
+Thumbs.db
