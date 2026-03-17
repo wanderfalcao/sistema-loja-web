@@ -4,6 +4,7 @@ import br.com.infnet.client.ProdutoInfo;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusPedido;
 import br.com.infnet.pedido.dto.ItemPedidoRequest;
+import br.com.infnet.pedido.dto.PedidoResponse;
 import br.com.infnet.pedido.service.PedidoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -15,8 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -31,25 +30,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Testes de integração que verificam a comunicação real (HTTP) entre
  * pedido-service e produto-service usando WireMock como servidor HTTP fake.
+ *
+ * <p>A porta 9999 corresponde ao {@code produto.service.url=http://localhost:9999}
+ * definido em {@code application-test.properties}.
  */
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("Integração pedido-service → produto-service (WireMock)")
 class PedidoIntegracaoClientTest {
 
-    // WireMock iniciado em bloco estático para estar disponível antes do
-    // ApplicationContext do Spring (necessário para @DynamicPropertySource).
+    // Porta fixa 9999 alinhada com application-test.properties
     static final WireMockServer wireMockServer;
 
     static {
-        wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        wireMockServer = new WireMockServer(WireMockConfiguration.options().port(9999));
         wireMockServer.start();
-    }
-
-    @DynamicPropertySource
-    static void configurarUrlProdutoService(DynamicPropertyRegistry registry) {
-        registry.add("produto.service.url",
-                () -> "http://localhost:" + wireMockServer.port());
     }
 
     @AfterAll
@@ -163,8 +158,7 @@ class PedidoIntegracaoClientTest {
         item.setProdutoId(produtoId);
         item.setQuantidade(1);
 
-        br.com.infnet.pedido.dto.PedidoResponse response =
-                pedidoService.adicionarItem(pedido.getId(), item);
+        PedidoResponse response = pedidoService.adicionarItem(pedido.getId(), item);
 
         assertThat(response.getItens()).hasSize(1);
         assertThat(response.getItens().get(0).getNomeProduto()).isEqualTo("Monitor 4K");
