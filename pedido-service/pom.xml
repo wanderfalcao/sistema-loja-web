@@ -106,6 +106,12 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Apache HttpClient 5 — habilita suporte a PATCH no RestTemplate -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+
         <!-- WireMock — testes de integração entre serviços -->
         <dependency>
             <groupId>org.wiremock</groupId>
