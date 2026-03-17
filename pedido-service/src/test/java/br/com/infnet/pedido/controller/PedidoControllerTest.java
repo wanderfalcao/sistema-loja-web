@@ -277,4 +277,40 @@ class PedidoControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attributeExists("erro"));
     }
+
+    @Test
+    void adicionarItem_comPrecoValido_redirecionaParaDetalhe() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.adicionarItem(eq(id), any())).thenReturn(null);
+
+        mockMvc.perform(post("/pedidos/" + id + "/itens")
+                        .param("nomeProduto", "Monitor 4K")
+                        .param("precoUnitario", "2500.00")
+                        .param("quantidade", "1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/pedidos/" + id));
+    }
+
+    @Test
+    void adicionarItem_semPrecoUnitario_redirecionaParaDetalhe() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.adicionarItem(eq(id), any())).thenReturn(null);
+
+        mockMvc.perform(post("/pedidos/" + id + "/itens")
+                        .param("nomeProduto", "Produto Manual")
+                        .param("quantidade", "2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/pedidos/" + id));
+    }
+
+    @Test
+    void removerItem_redirecionaParaDetalhe() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+        when(service.removerItem(eq(id), eq(itemId))).thenReturn(null);
+
+        mockMvc.perform(post("/pedidos/" + id + "/itens/" + itemId + "/remover"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/pedidos/" + id));
+    }
 }

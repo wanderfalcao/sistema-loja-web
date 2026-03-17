@@ -8,6 +8,11 @@ import br.com.infnet.pedido.factory.PedidoTestFactory;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusHistorico;
 import br.com.infnet.pedido.domain.StatusPedido;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+
+import java.util.Map;
 import br.com.infnet.pedido.domain.exception.PedidoNaoEncontradoException;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.client.ProdutoServiceClient;
@@ -401,6 +406,70 @@ class PedidoServiceTest {
         service.avancarStatus(id, StatusPedido.CANCELADO);
 
         verify(produtoServiceClient).ajustarEstoque(eq(produtoId), eq(TipoOperacaoEstoque.ENTRADA), eq(1));
+    }
+
+    @Test
+    void buscarHistorico_retornaListaOrdenada() {
+        StatusHistorico h = new StatusHistorico(pedidoPendente, StatusPedido.PENDENTE, StatusPedido.PROCESSANDO, null);
+        when(statusHistoricoRepository.findAllByPedidoIdOrderByDataTransicaoAsc(id)).thenReturn(List.of(h));
+
+        List<StatusHistorico> historico = service.buscarHistorico(id);
+
+        assertThat(historico).hasSize(1);
+        verify(statusHistoricoRepository).findAllByPedidoIdOrderByDataTransicaoAsc(id);
+    }
+
+    @Test
+    void contarPorStatus_retornaContagemParaCadaStatus() {
+        for (StatusPedido s : StatusPedido.values()) {
+            when(repository.countByStatus(s)).thenReturn(0L);
+        }
+        when(repository.countByStatus(StatusPedido.PENDENTE)).thenReturn(3L);
+
+        Map<String, Long> contagem = service.contarPorStatus();
+
+        assertThat(contagem).containsKey("PENDENTE");
+        assertThat(contagem.get("PENDENTE")).isEqualTo(3L);
+        assertThat(contagem).hasSize(StatusPedido.values().length);
+    }
+
+    @Test
+    void somarValoresAtivos_quandoRepositorioRetornaNulo_retornaZero() {
+        when(repository.somarValoresAtivos()).thenReturn(null);
+        assertThat(service.somarValoresAtivos()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void somarValoresAtivos_quandoRepositorioRetornaValor_retornaValor() {
+        when(repository.somarValoresAtivos()).thenReturn(new BigDecimal("150.00"));
+        assertThat(service.somarValoresAtivos()).isEqualByComparingTo("150.00");
+    }
+
+    @Test
+    void listarPaginadoComFiltros_comBuscaEStatus_delegaParaRepositorio() {
+        Page<Pedido> page = new PageImpl<>(List.of(pedidoPendente));
+        when(repository.filtrar(any(), any(), any())).thenReturn(page);
+
+        Page<Pedido> resultado = service.listarPaginadoComFiltros(
+                StatusPedido.PENDENTE, "Monitor", PageRequest.of(0, 10));
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(repository).filtrar(eq(StatusPedido.PENDENTE), eq("Monitor"), any());
+    }
+
+    @Test
+    void adicionarItem_comProdutoInativo_lancaDomainException() {
+        ProdutoInfo info = produtoInfoAtivo(UUID.randomUUID(), "Inativo", "I-001", new BigDecimal("10.00"));
+        info.setAtivo(false);
+        UUID produtoId = info.getId();
+        when(produtoServiceClient.buscarProduto(produtoId)).thenReturn(info);
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+
+        ItemPedidoRequest request = new ItemPedidoRequest(produtoId, null, null, null, 1);
+        assertThatThrownBy(() -> service.adicionarItem(id, request))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("inativo");
+        verify(repository, never()).save(any());
     }
 
     @Test
