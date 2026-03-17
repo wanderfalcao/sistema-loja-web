@@ -1,5 +1,8 @@
 # sistema-loja-web — Microsserviços
 
+[![CI](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/ci.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/ci.yml)
+[![Code Quality](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/code-quality.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/code-quality.yml)
+
 Sistema de loja online construído com arquitetura de microsserviços em Java 21 / Spring Boot 3.2.3, composto por dois serviços independentes que se comunicam via REST.
 
 **Disciplina:** Engenharia Disciplinada de Software — INFNET

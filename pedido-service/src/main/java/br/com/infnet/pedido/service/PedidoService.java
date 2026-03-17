@@ -193,23 +193,32 @@ public class PedidoService implements CrudService<Pedido, UUID> {
 
         log.info("Pedido {} transicionando {} → {}", id, atual, novoStatus);
 
-        // Baixa de estoque ao processar (chamada HTTP ao produto-service)
-        if (atual == StatusPedido.PENDENTE && novoStatus == StatusPedido.PROCESSANDO) {
-            debitarEstoque(pedido);
-        }
-        // Devolução de estoque ao cancelar (chamada HTTP ao produto-service)
-        if (atual == StatusPedido.PROCESSANDO && novoStatus == StatusPedido.CANCELADO) {
-            devolverEstoque(pedido);
-        }
+        processarTransicaoComEstoque(pedido, novoStatus);
 
         pedido.setStatus(novoStatus);
         pedido.setDataAtualizacao(LocalDateTime.now());
         Pedido salvo = repository.save(pedido);
 
-        statusHistoricoRepository.save(new StatusHistorico(salvo, atual, novoStatus, null));
-        log.info("Histórico de status registrado: pedido={} {} → {}", id, atual, novoStatus);
+        registrarHistoricoTransicao(salvo, atual, novoStatus);
 
         return salvo;
+    }
+
+    private void processarTransicaoComEstoque(Pedido pedido, StatusPedido novoStatus) {
+        StatusPedido atual = pedido.getStatus();
+        if (atual == StatusPedido.PENDENTE && novoStatus == StatusPedido.PROCESSANDO) {
+            debitarEstoque(pedido);
+        }
+        if (atual == StatusPedido.PROCESSANDO && novoStatus == StatusPedido.CANCELADO) {
+            devolverEstoque(pedido);
+        }
+    }
+
+    private void registrarHistoricoTransicao(Pedido pedido, StatusPedido anterior,
+            StatusPedido novo) {
+        statusHistoricoRepository.save(new StatusHistorico(pedido, anterior, novo, null));
+        log.info("Histórico de status registrado: pedido={} {} → {}", pedido.getId(),
+                anterior, novo);
     }
 
     @Transactional

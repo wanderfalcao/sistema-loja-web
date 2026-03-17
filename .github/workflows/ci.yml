@@ -76,6 +76,9 @@ jobs:
               total=$((covered + missed))
               pct=$(awk "BEGIN {printf \"%.1f\", ($covered/$total)*100}")
               echo "- **$service**: $covered/$total linhas ($pct%)" >> $GITHUB_STEP_SUMMARY
+              echo "::notice title=Cobertura $service::${pct}% de linhas cobertas ($covered/$total)"
+            else
+              echo "::warning title=JaCoCo $service::Relatório jacoco.csv não encontrado"
             fi
           done
 

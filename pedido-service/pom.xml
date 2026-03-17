@@ -105,6 +105,14 @@
             <version>5.8.0</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- WireMock — testes de integração entre serviços -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.3.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
