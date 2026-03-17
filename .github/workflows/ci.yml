@@ -11,6 +11,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      checks: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +26,29 @@ jobs:
 
       - name: Build e testes (todos os módulos)
         run: mvn verify -B
+
+      - name: Upload relatórios de testes unitários — produto-service
+        uses: actions/upload-artifact@v4
+        with:
+          name: testes-unitarios-produto-service
+          path: produto-service/target/surefire-reports/
+        if: always()
+
+      - name: Upload relatórios de testes unitários — pedido-service
+        uses: actions/upload-artifact@v4
+        with:
+          name: testes-unitarios-pedido-service
+          path: pedido-service/target/surefire-reports/
+        if: always()
+
+      - name: Publicar resultados dos testes
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Testes JUnit
+          path: '**/target/surefire-reports/TEST-*.xml'
+          reporter: java-junit
+          fail-on-error: false
 
       - name: Upload JaCoCo — produto-service
         uses: actions/upload-artifact@v4
@@ -36,6 +63,21 @@ jobs:
           name: jacoco-pedido-service
           path: pedido-service/target/site/jacoco/
         if: always()
+
+      - name: Resumo de cobertura JaCoCo
+        if: always()
+        run: |
+          echo "## Cobertura JaCoCo" >> $GITHUB_STEP_SUMMARY
+          for service in produto-service pedido-service; do
+            csv="$service/target/site/jacoco/jacoco.csv"
+            if [ -f "$csv" ]; then
+              covered=$(tail -n +2 "$csv" | awk -F',' '{s+=$5} END {print s}')
+              missed=$(tail -n +2  "$csv" | awk -F',' '{s+=$4} END {print s}')
+              total=$((covered + missed))
+              pct=$(awk "BEGIN {printf \"%.1f\", ($covered/$total)*100}")
+              echo "- **$service**: $covered/$total linhas ($pct%)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
 
       - name: Selenium E2E — produto-service
         run: mvn test -pl produto-service -Dgroups=selenium -B
