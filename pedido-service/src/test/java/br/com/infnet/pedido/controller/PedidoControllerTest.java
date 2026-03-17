@@ -38,7 +38,7 @@ class PedidoControllerTest {
     @Test
     void listar_retornaView_comPedidos() throws Exception {
         Page<Pedido> page = new PageImpl<>(List.of(PedidoTestFactory.pedidoPendente()));
-        when(service.listarPaginado(any())).thenReturn(page);
+        when(service.listarPaginadoComFiltros(any(), any(), any())).thenReturn(page);
         when(service.contarPorStatus()).thenReturn(java.util.Map.of());
         when(service.somarValoresAtivos()).thenReturn(BigDecimal.TEN);
 
@@ -51,7 +51,7 @@ class PedidoControllerTest {
     @Test
     void listar_retornaView_semPedidos() throws Exception {
         Page<Pedido> page = new PageImpl<>(List.of());
-        when(service.listarPaginado(any())).thenReturn(page);
+        when(service.listarPaginadoComFiltros(any(), any(), any())).thenReturn(page);
         when(service.contarPorStatus()).thenReturn(java.util.Map.of());
         when(service.somarValoresAtivos()).thenReturn(BigDecimal.ZERO);
 
@@ -271,7 +271,7 @@ class PedidoControllerTest {
 
     @Test
     void listar_genericException_redirecionaComErro() throws Exception {
-        when(service.listarPaginado(any())).thenThrow(new RuntimeException("Erro inesperado"));
+        when(service.listarPaginadoComFiltros(any(), any(), any())).thenThrow(new RuntimeException("Erro inesperado"));
 
         mockMvc.perform(get("/pedidos"))
                 .andExpect(status().is3xxRedirection())
