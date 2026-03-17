@@ -1,5 +1,8 @@
 package br.com.infnet.config;
 
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,10 +20,13 @@ public class RestTemplateConfig {
 
     @Bean
     public RestTemplate restTemplate() {
-        HttpComponentsClientHttpRequestFactory factory =
-                new HttpComponentsClientHttpRequestFactory();
-        factory.setConnectTimeout(connectTimeoutMs);
-        factory.setReadTimeout(readTimeoutMs);
-        return new RestTemplate(factory);
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(Timeout.ofMilliseconds(connectTimeoutMs))
+                .setResponseTimeout(Timeout.ofMilliseconds(readTimeoutMs))
+                .build();
+        var httpClient = HttpClients.custom()
+                .setDefaultRequestConfig(requestConfig)
+                .build();
+        return new RestTemplate(new HttpComponentsClientHttpRequestFactory(httpClient));
     }
 }
