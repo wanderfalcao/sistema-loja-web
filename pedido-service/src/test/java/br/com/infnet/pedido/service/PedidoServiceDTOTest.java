@@ -10,6 +10,7 @@ import br.com.infnet.pedido.factory.PedidoTestFactory;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
+import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.shared.exception.DomainException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,9 @@ class PedidoServiceDTOTest {
 
     @Mock
     ProdutoServiceClient produtoServiceClient;
+
+    @Mock
+    StatusHistoricoRepository statusHistoricoRepository;
 
     @InjectMocks
     PedidoService service;

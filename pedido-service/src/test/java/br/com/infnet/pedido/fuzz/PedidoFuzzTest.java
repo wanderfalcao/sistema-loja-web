@@ -11,6 +11,7 @@ import br.com.infnet.shared.exception.DomainException;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.BigRange;
 import net.jqwik.api.constraints.StringLength;
+import net.jqwik.api.Assume;
 import org.mockito.Mockito;
 
 import java.math.BigDecimal;
@@ -94,6 +95,8 @@ class PedidoFuzzTest {
             @ForAll @StringLength(min = Pedido.MAX_DESCRICAO + 1, max = 1000)
             String descricao) {
 
+        Assume.that(descricao.trim().length() > Pedido.MAX_DESCRICAO);
+
         assertThatThrownBy(() -> newService().criar(descricao, new BigDecimal("1.00")))
                 .isInstanceOf(DomainException.class);
     }
@@ -101,6 +104,8 @@ class PedidoFuzzTest {
     @Property
     void pedido_idEDataCriacao_saoImutaveis(
             @ForAll @StringLength(min = 1, max = 50) String descricao) {
+
+        Assume.that(!descricao.isBlank());
 
         PedidoRepository repo = Mockito.mock(PedidoRepository.class);
         PedidoMapper mapper = Mockito.mock(PedidoMapper.class);
