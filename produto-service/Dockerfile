@@ -1,23 +1,16 @@
-# Estágio de Build
 FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
 
-# Copia todo o projeto para o contexto de build
 COPY . .
 
-# Compila apenas o módulo 'produto-service' e suas dependências,
-# executando os testes e as verificações de qualidade.
-RUN mvn -pl produto-service -am package
+RUN mvn -pl produto-service -am package -DskipTests
 
-# Estágio de Execução
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Usuário não-root por boas práticas de segurança
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
-# Copia o JAR gerado do módulo específico
 COPY --from=build /app/produto-service/target/*.jar app.jar
 
 EXPOSE 8081

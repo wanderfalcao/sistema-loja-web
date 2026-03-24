@@ -337,12 +337,12 @@
             <form th:action="@{/pedidos/{id}/itens(id=${pedido.id})}" method="post">
                 <div class="row g-2 align-items-end mb-2">
                     <div class="col-md-4">
-                        <label class="form-label form-label-sm mb-1">ID do Produto (lookup)</label>
+                        <label class="form-label form-label-sm mb-1">SKU do Produto (lookup)</label>
                         <div class="input-group input-group-sm">
-                            <input type="text" id="inputProdutoId" class="form-control form-control-sm"
-                                   placeholder="UUID do produto"/>
+                            <input type="text" id="inputProdutoSku" class="form-control form-control-sm"
+                                   placeholder="Ex.: CAMISETA-BASICA-P"/>
                             <button type="button" class="btn btn-sm btn-outline-secondary"
-                                    onclick="buscarProdutoPorId()">
+                                    onclick="buscarProdutoPorSku()">
                                 <i class="bi bi-search"></i> Buscar
                             </button>
                         </div>
@@ -475,22 +475,22 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/global.js"></script>
 <script>
-function buscarProdutoPorId() {
-    const id = document.getElementById('inputProdutoId').value.trim();
+function buscarProdutoPorSku() {
+    const sku = document.getElementById('inputProdutoSku').value.trim();
     const alertDiv = document.getElementById('alertaProduto');
     const alertMsg = document.getElementById('alertaProdutoMsg');
-    if (!id) { return; }
-    fetch('/api/v1/produtos/' + id, {
+    if (!sku) { return; }
+    fetch('/api/v1/produtos/sku/' + encodeURIComponent(sku), {
         headers: { 'Accept': 'application/json' }
     })
     .then(r => {
-        if (!r.ok) throw new Error('Produto não encontrado (status ' + r.status + ')');
+        if (!r.ok) throw new Error('Produto não encontrado para SKU: ' + sku);
         return r.json();
     })
     .then(p => {
-        document.getElementById('hiddenProdutoId').value   = p.id;
-        document.getElementById('inputNomeProduto').value  = p.nome;
-        document.getElementById('inputSkuProduto').value   = p.sku  || '';
+        document.getElementById('hiddenProdutoId').value    = p.id;
+        document.getElementById('inputNomeProduto').value   = p.nome;
+        document.getElementById('inputSkuProduto').value    = p.sku  || '';
         document.getElementById('inputPrecoUnitario').value = p.preco;
         alertDiv.style.display = 'none';
     })
