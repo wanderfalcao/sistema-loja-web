@@ -28,19 +28,7 @@ Sistema de loja construído com microsserviços Spring Boot. O `produto-service`
          SonarQube     :9000  —  qualidade de código (local)
 ```
 
-## Inicialização rápida (Windows)
-
-```bat
-iniciar.bat
-```
-
-Verifica se o Docker está ativo, constrói todas as imagens com `docker-compose up --build -d`, aguarda o health check do api-gateway ficar UP e abre o Swagger no navegador automaticamente. Para parar: `docker-compose stop`. Para limpar tudo incluindo volumes: `docker-compose down -v`.
-
-Requer Docker Desktop instalado e rodando.
-
----
-
-## Como subir manualmente
+## Como subir
 
 ```bash
 docker-compose up --build
@@ -141,15 +129,15 @@ mvn test -pl produto-service -Dgroups=selenium
 
 Os arquivos ficam em `.github/workflows/`. Para verificar execuções passadas: aba **Actions** do repositório. Para disparar manualmente qualquer workflow: **Actions → selecione o workflow → Run workflow**.
 
-**ci.yml** tem dois jobs. O primeiro — *Testes e Cobertura* — compila o projeto, executa todos os testes unitários e de integração dos dois serviços (incluindo WireMock e jqwik), gera o relatório JaCoCo e publica os resultados no painel do Actions. Se algum teste falhar ou a cobertura ficar abaixo de 90%, o job fecha com erro. O segundo job — *Selenium E2E* — só começa após o primeiro passar. Ele constrói as imagens Docker, sobe a stack completa (Eureka, produto-service, pedido-service, api-gateway, bancos), aguarda o health check do gateway ficar UP e então executa os testes Selenium dos dois serviços contra a aplicação real. Nenhum PR deve ser mergeado com esse workflow em vermelho.
+**ci.yml** tem dois jobs. O primeiro — *Testes e Cobertura* — compila o projeto, executa todos os testes unitários e de integração dos dois serviços (incluindo WireMock e jqwik), gera o relatório JaCoCo e publica os resultados no painel do Actions. Se algum teste falhar ou a cobertura ficar abaixo de 90%, o job fecha com erro. O segundo job — *Selenium E2E* — só começa após o primeiro passar. Executa os testes Selenium com `@SpringBootTest`, que sobem o contexto Spring completo com Testcontainers provisionando o banco automaticamente — sem necessidade de Docker externo no runner. Nenhum PR deve ser mergeado com esse workflow em vermelho.
 
 **code-quality.yml** roda o Checkstyle com as regras do Google Style Guide. Qualquer violação de severidade `error` quebra o build. Isso garante que o estilo de código seja consistente independente de qual IDE cada desenvolvedor usa.
 
 **security.yml** roda análise estática com GitHub CodeQL para detectar vulnerabilidades em Java (SQL injection, XSS, gerenciamento incorreto de recursos, etc.). Executa em todo push para master e semanalmente às segundas. Os resultados aparecem na aba **Security → Code scanning alerts** do repositório.
 
-**sonarqube.yml** sobe um SonarQube Community Edition como container efêmero dentro do próprio job do GitHub Actions — sem precisar de servidor externo. Após o SonarQube inicializar, o workflow gera um token de análise, executa `mvn verify sonar:sonar` com os relatórios JaCoCo e exibe o resultado do Quality Gate no log. Para ver o dashboard completo seria necessário um servidor SonarQube persistente; para uso local, veja a seção abaixo.
+**sonarqube.yml** sobe um SonarQube Community Edition como container efêmero dentro do próprio job do GitHub Actions — sem precisar de servidor externo. Após o SonarQube inicializar, o workflow gera um token de análise, executa `mvn verify` nos dois serviços para gerar os relatórios JaCoCo e em seguida `mvn sonar:sonar` a partir da raiz do projeto para enviar a análise. O resultado do Quality Gate é exibido no log. Para ver o dashboard completo seria necessário um servidor SonarQube persistente; para uso local, veja a seção abaixo.
 
-**deploy.yml** é acionado automaticamente quando o ci.yml passa com sucesso. Constrói as imagens Docker de cada serviço usando buildx e as publica no GitHub Container Registry (`ghcr.io`) com duas tags: o SHA do commit e `latest`. Em seguida faz deploy automático no ambiente de `dev` — sobe a stack com as imagens recém-publicadas e roda os testes Selenium para validar. O deploy em `prod` fica bloqueado por um environment de proteção no GitHub: é preciso aprovação manual antes de prosseguir.
+**deploy.yml** é acionado automaticamente quando o ci.yml passa com sucesso. Constrói as imagens Docker de cada serviço usando buildx e as publica no GitHub Container Registry (`ghcr.io`) com duas tags: o SHA do commit e `latest`. O deploy em `dev` e o deploy em `prod` ficam bloqueados por environments de proteção no GitHub — ambos exigem aprovação manual de `wanderfalcao` antes de prosseguir. O ambiente `prod` tem adicionalmente um wait timer de 5 minutos após a aprovação, dando uma janela de segurança para cancelar. Deploys só são permitidos a partir da branch `master`.
 
 ## Análise de qualidade com SonarQube
 
@@ -160,8 +148,9 @@ Para rodar localmente:
 docker-compose up sonarqube -d
 
 # Aguarda o health check ficar UP, depois:
-mvn verify sonar:sonar \
-  -pl produto-service,pedido-service \
+mvn verify -pl produto-service,pedido-service
+
+mvn sonar:sonar \
   -Dsonar.host.url=http://localhost:9000 \
   -Dsonar.login=admin \
   -Dsonar.password=admin \
