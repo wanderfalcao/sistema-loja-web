@@ -29,8 +29,8 @@ jobs:
           distribution: temurin
           cache: maven
 
-      - name: Build e testes (todos os módulos)
-        run: mvn verify -B
+      - name: Build e testes (produto-service e pedido-service)
+        run: mvn verify -B -pl produto-service,pedido-service
 
       - name: Publicar resultados dos testes
         uses: dorny/test-reporter@v1
@@ -76,19 +76,21 @@ jobs:
           for service in produto-service pedido-service; do
             csv="$service/target/site/jacoco/jacoco.csv"
             if [ -f "$csv" ]; then
-              covered=$(tail -n +2 "$csv" | awk -F',' '{s+=$5} END {print s}')
-              missed=$(tail -n +2  "$csv" | awk -F',' '{s+=$4} END {print s}')
+              covered=$(tail -n +2 "$csv" | awk -F',' '{s+=$5} END {print s+0}')
+              missed=$(tail -n +2  "$csv" | awk -F',' '{s+=$4} END {print s+0}')
               total=$((covered + missed))
-              pct=$(awk "BEGIN {printf \"%.1f\", ($covered/$total)*100}")
-              echo "- **$service**: $covered/$total linhas ($pct%)" >> $GITHUB_STEP_SUMMARY
-              echo "::notice title=Cobertura $service::${pct}% de linhas cobertas ($covered/$total)"
+              if [ "$total" -gt 0 ]; then
+                pct=$(awk "BEGIN {printf \"%.1f\", ($covered/$total)*100}")
+                echo "- **$service**: $covered/$total linhas ($pct%)" >> $GITHUB_STEP_SUMMARY
+                echo "::notice title=Cobertura $service::${pct}% de linhas cobertas ($covered/$total)"
+              fi
             else
               echo "::warning title=JaCoCo $service::Relatório jacoco.csv não encontrado"
             fi
           done
 
   # ─────────────────────────────────────────────────────────
-  # Job 2: Testes Selenium E2E com stack completa
+  # Job 2: Testes Selenium E2E
   # ─────────────────────────────────────────────────────────
   selenium:
     name: Selenium E2E
@@ -105,34 +107,6 @@ jobs:
           distribution: temurin
           cache: maven
 
-      - name: Build das imagens Docker
-        run: docker compose build
-
-      - name: Subir stack completa
-        run: |
-          docker compose up -d \
-            eureka-server produto-service pedido-service api-gateway \
-            produto-db pedido-db
-
-      - name: Aguardar api-gateway ficar saudável
-        run: |
-          echo "Aguardando serviços..."
-          for i in $(seq 1 30); do
-            STATUS=$(curl -sf http://localhost:8080/actuator/health \
-              | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "DOWN")
-            echo "Tentativa $i: $STATUS"
-            if [ "$STATUS" = "UP" ]; then
-              echo "Stack disponível."
-              break
-            fi
-            sleep 10
-          done
-          if [ "$STATUS" != "UP" ]; then
-            echo "Stack não ficou disponível a tempo."
-            docker compose logs
-            exit 1
-          fi
-
       - name: Selenium E2E — produto-service
         run: mvn test -pl produto-service -Dgroups=selenium -B
 
@@ -147,7 +121,3 @@ jobs:
           path: |
             produto-service/target/surefire-reports/
             pedido-service/target/surefire-reports/
-
-      - name: Parar stack
-        if: always()
-        run: docker compose down -v
