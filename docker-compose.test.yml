@@ -1,0 +1,30 @@
+services:
+
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      TZ: America/Sao_Paulo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d testdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  maven:
+    image: maven:3.9.6-eclipse-temurin-21-alpine
+    volumes:
+      - .:/app
+      - ${M2_CACHE:-~/.m2}:/root/.m2
+    working_dir: /app
+    environment:
+      TZ: America/Sao_Paulo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-test:5432/testdb
+      SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
+      SPRING_DATASOURCE_USERNAME: test
+      SPRING_DATASOURCE_PASSWORD: test
+    depends_on:
+      postgres-test:
+        condition: service_healthy

@@ -1,0 +1,11 @@
+# Override para deploy com imagens pré-construídas do ghcr.io
+# Uso: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Variáveis requeridas: PRODUTO_SERVICE_IMAGE, PEDIDO_SERVICE_IMAGE
+services:
+  produto-service:
+    image: ${PRODUTO_SERVICE_IMAGE:-ghcr.io/wanderfalcao/produto-service:latest}
+    build: !reset null
+
+  pedido-service:
+    image: ${PEDIDO_SERVICE_IMAGE:-ghcr.io/wanderfalcao/pedido-service:latest}
+    build: !reset null
