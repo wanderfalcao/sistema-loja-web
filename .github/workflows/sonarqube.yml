@@ -69,14 +69,18 @@ jobs:
             | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Build e análise
+      - name: Build e testes
         run: |
-          mvn -B verify sonar:sonar \
+          mvn -B verify -pl produto-service,pedido-service \
+            -Dspring.profiles.active=test
+
+      - name: Análise SonarQube
+        run: |
+          mvn -B sonar:sonar \
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.token=${{ steps.sonar-setup.outputs.token }} \
             -Dsonar.projectKey=sistema-loja-web \
-            -Dsonar.exclusions="**/DataLoader.java,**/*Application.java,**/dto/**,**/mapper/**" \
-            -pl produto-service,pedido-service
+            -Dsonar.exclusions="**/DataLoader.java,**/*Application.java,**/dto/**,**/mapper/**"
 
       - name: Resultado da análise
         if: always()
