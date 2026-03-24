@@ -108,7 +108,7 @@ jobs:
           cache: maven
 
       - name: Testes Selenium pós-deploy (dev)
-        run: mvn test -pl produto-service,pedido-service -Dgroups=selenium -B
+        run: mvn test -pl produto-service,pedido-service -Dgroups=selenium -Dspring.profiles.active=test -B
         continue-on-error: true
 
       - name: Upload resultados Selenium — dev
@@ -161,7 +161,7 @@ jobs:
           cache: maven
 
       - name: Testes Selenium pós-deploy (prod)
-        run: mvn test -pl produto-service,pedido-service -Dgroups=selenium -B
+        run: mvn test -pl produto-service,pedido-service -Dgroups=selenium -Dspring.profiles.active=test -B
         continue-on-error: true
 
       - name: Upload resultados Selenium — prod

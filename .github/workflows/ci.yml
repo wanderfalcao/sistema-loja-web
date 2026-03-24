@@ -108,10 +108,10 @@ jobs:
           cache: maven
 
       - name: Selenium E2E — produto-service
-        run: mvn test -pl produto-service -Dgroups=selenium -B
+        run: mvn test -pl produto-service -Dgroups=selenium -Dspring.profiles.active=test -B
 
       - name: Selenium E2E — pedido-service
-        run: mvn test -pl pedido-service -Dgroups=selenium -B
+        run: mvn test -pl pedido-service -Dgroups=selenium -Dspring.profiles.active=test -B
 
       - name: Upload resultados Selenium
         uses: actions/upload-artifact@v4
