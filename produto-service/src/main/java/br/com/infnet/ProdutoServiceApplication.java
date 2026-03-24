@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /** Produto Service — microsserviço de catálogo de produtos. */
-@SpringBootApplication
+@SpringBootApplication(proxyBeanMethods = false)
 public final class ProdutoServiceApplication {
 
     private ProdutoServiceApplication() { }

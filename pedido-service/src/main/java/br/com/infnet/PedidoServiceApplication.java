@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /** Pedido Service — microsserviço de gestão de pedidos. */
-@SpringBootApplication
+@SpringBootApplication(proxyBeanMethods = false)
 public final class PedidoServiceApplication {
 
     private PedidoServiceApplication() { }

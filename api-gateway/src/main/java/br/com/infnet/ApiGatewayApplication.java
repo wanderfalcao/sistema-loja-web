@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /** API Gateway — ponto de entrada único da aplicação. */
-@SpringBootApplication
+@SpringBootApplication(proxyBeanMethods = false)
 public final class ApiGatewayApplication {
 
     private ApiGatewayApplication() { }

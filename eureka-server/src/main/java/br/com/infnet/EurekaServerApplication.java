@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.netflix.eureka.server.EnableEurekaServer;
 
 /** Eureka Server — service discovery da stack. */
-@SpringBootApplication
+@SpringBootApplication(proxyBeanMethods = false)
 @EnableEurekaServer
 public final class EurekaServerApplication {
 
