@@ -1,481 +1,215 @@
-# sistema-loja-web — Microsserviços
+# sistema-loja-web
 
 [![CI](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/ci.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/ci.yml)
 [![Code Quality](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/code-quality.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/code-quality.yml)
+[![Security](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/security.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/security.yml)
 
-Sistema de loja online construído com arquitetura de microsserviços em Java 21 / Spring Boot 3.2.3, composto por dois serviços independentes que se comunicam via REST.
-
-**Disciplina:** Engenharia Disciplinada de Software — INFNET
-
----
-
-## Sumário
-
-1. [Visão geral](#visão-geral)
-2. [Arquitetura](#arquitetura)
-3. [Pré-requisitos](#pré-requisitos)
-4. [Iniciar a stack completa](#iniciar-a-stack-completa)
-5. [Desenvolvimento local (sem Docker)](#desenvolvimento-local-sem-docker)
-6. [Acessar os serviços](#acessar-os-serviços)
-7. [Executar os testes](#executar-os-testes)
-8. [Estrutura do projeto](#estrutura-do-projeto)
-9. [Comunicação entre serviços](#comunicação-entre-serviços)
-10. [Máquina de estados do pedido](#máquina-de-estados-do-pedido)
-11. [API REST — produto-service](#api-rest--produto-service)
-12. [API REST — pedido-service](#api-rest--pedido-service)
-13. [Decisões de design](#decisões-de-design)
-
----
-
-## Visão geral
-
-| Serviço | Responsabilidade | Porta |
-|---------|-----------------|-------|
-| **produto-service** | Catálogo de produtos, estoque e promoções | `8081` |
-| **pedido-service** | Pedidos, itens e ciclo de vida (status) | `8082` |
-
-Cada serviço possui banco de dados PostgreSQL próprio, interface web Thymeleaf, API REST e Swagger UI independentes.
-
----
+Sistema de loja construído com microsserviços Spring Boot. O `produto-service` gerencia o catálogo e o estoque; o `pedido-service` controla o ciclo de vida dos pedidos e chama o produto-service para ajustar estoque nas transições de status. Tudo passa pelo `api-gateway`, que roteia as requisições e serve o Swagger unificado dos dois serviços.
 
 ## Arquitetura
 
 ```
-┌──────────────────────────────┐      ┌──────────────────────────────┐
-│       produto-service        │      │       pedido-service         │
-│           :8081              │      │           :8082              │
-│                              │      │                              │
-│  ProdutoController (MVC)     │      │  PedidoController  (MVC)     │
-│  ProdutoRestController (REST)│◄─────│  PedidoRestController (REST) │
-│  ProdutoService              │ HTTP │  PedidoService               │
-│  ProdutoRepository           │      │  PedidoRepository            │
-│         │                    │      │  ProdutoServiceClient        │
-│         ▼                    │      │         │                    │
-│   PostgreSQL (produto_db)    │      │   PostgreSQL (pedido_db)     │
-│        :5433                 │      │        :5434                 │
-└──────────────────────────────┘      └──────────────────────────────┘
+                      ┌───────────────────┐
+                      │    api-gateway    │  :8080
+                      │  Spring Cloud GW  │  /swagger-ui.html
+                      └─────────┬─────────┘
+              lb://              │               lb://
+    ┌─────────────────────┬──────┴──────┬─────────────────────┐
+    ▼                                                         ▼
+┌───────────────┐                               ┌───────────────────┐
+│produto-service│  :8081                        │  pedido-service   │  :8082
+│ produtos, SKU │◄────── REST (via gateway) ────│  pedidos, status  │
+│ estoque, promo│                               │  audit trail      │
+└───────┬───────┘                               └────────┬──────────┘
+        │                                                │
+   produto-db :5433                               pedido-db :5434
+
+         Eureka Server :8761  —  service discovery
+         SonarQube     :9000  —  qualidade de código (local)
 ```
 
-O `pedido-service` chama o `produto-service` via `RestTemplate` em dois momentos:
-- **PENDENTE → PROCESSANDO**: debita estoque (SAÍDA) para cada item com `produtoId`
-- **PROCESSANDO → CANCELADO**: devolve estoque (ENTRADA)
+## Inicialização rápida (Windows)
+
+```bat
+iniciar.bat
+```
+
+Verifica se o Docker está ativo, constrói todas as imagens com `docker-compose up --build -d`, aguarda o health check do api-gateway ficar UP e abre o Swagger no navegador automaticamente. Para parar: `docker-compose stop`. Para limpar tudo incluindo volumes: `docker-compose down -v`.
+
+Requer Docker Desktop instalado e rodando.
 
 ---
 
-## Pré-requisitos
-
-| Ferramenta | Versão mínima |
-|------------|---------------|
-| Java (JDK) | 21+ |
-| Maven      | 3.9+ |
-| Docker Desktop | 24+ |
-
----
-
-## Iniciar a stack completa
+## Como subir manualmente
 
 ```bash
-# Dentro de sistema-loja-web/
-cd sistema-loja-web
-
-# Build e inicialização de todos os containers (5 no total)
-docker compose up --build
-
-# Acompanhar logs de um serviço específico
-docker compose logs -f produto-service
-docker compose logs -f pedido-service
+docker-compose up --build
 ```
 
-O `docker-compose.yml` sobe:
+Aguarda todos os health checks (~2 min na primeira vez). Ao finalizar, o terminal exibe os endereços:
 
-| Container | Imagem | Porta host |
-|-----------|--------|-----------|
-| `produto-db` | postgres:16-alpine | `5433` |
-| `pedido-db` | postgres:16-alpine | `5434` |
-| `produto-service` | build local | `8081` |
-| `pedido-service` | build local | `8082` |
-| `pgadmin` | dpage/pgadmin4 | `5050` |
+| Serviço     | URL                                       |
+|-------------|-------------------------------------------|
+| API Gateway | http://localhost:8080                     |
+| Pedidos     | http://localhost:8080/pedidos             |
+| Produtos    | http://localhost:8080/produtos            |
+| Swagger UI  | http://localhost:8080/swagger-ui.html     |
+| Eureka      | http://localhost:8761                     |
+| SonarQube   | http://localhost:9000  (admin / admin)    |
+| PgAdmin     | http://localhost:5050  (admin@loja.com / admin) |
 
-> O `pedido-service` aguarda o `produto-service` estar healthy antes de iniciar (via `depends_on: condition: service_healthy`).
-
-### Parar tudo
+Para subir só o essencial sem SonarQube e PgAdmin:
 
 ```bash
-docker compose stop
-
-# Parar e remover volumes (apaga dados)
-docker compose down -v
+docker-compose up eureka-server produto-service pedido-service api-gateway
 ```
 
----
+Para derrubar tudo e limpar os volumes:
+
+```bash
+docker-compose down -v
+```
 
 ## Desenvolvimento local (sem Docker)
 
-Para rodar os serviços localmente, suba apenas os bancos via Docker e rode cada aplicação separadamente.
-
-### 1. Subir os bancos
+Suba apenas os bancos e o Eureka, depois rode cada serviço individualmente:
 
 ```bash
-docker compose up produto-db pedido-db -d
-docker compose ps    # aguardar status healthy
+docker-compose up produto-db pedido-db eureka-server -d
+
+# terminal 1
+cd produto-service && mvn spring-boot:run
+
+# terminal 2
+cd pedido-service && mvn spring-boot:run
+
+# terminal 3
+cd api-gateway && mvn spring-boot:run
 ```
 
-### 2. Rodar produto-service (porta 8081)
+O `DataLoader` popula produtos e pedidos de exemplo automaticamente no perfil `dev`.
+
+## Endpoints (via Gateway — :8080)
+
+| Método | Caminho                              | Descrição                     |
+|--------|--------------------------------------|-------------------------------|
+| GET    | /api/v1/produtos                     | Lista produtos paginado        |
+| POST   | /api/v1/produtos                     | Cadastra produto               |
+| GET    | /api/v1/produtos/{id}                | Busca por ID                   |
+| PUT    | /api/v1/produtos/{id}                | Atualiza produto               |
+| PATCH  | /api/v1/produtos/{id}/estoque        | Ajusta estoque (ENTRADA/SAIDA) |
+| GET    | /api/v1/pedidos                      | Lista pedidos paginado         |
+| POST   | /api/v1/pedidos                      | Cria pedido                    |
+| GET    | /api/v1/pedidos/{id}                 | Busca por ID                   |
+| PATCH  | /api/v1/pedidos/{id}/avancar         | Avança status                  |
+| PATCH  | /api/v1/pedidos/{id}/cancelar        | Cancela pedido                 |
+
+Documentação interativa: http://localhost:8080/swagger-ui.html (dropdown para alternar entre os serviços)
+
+## Testes
+
+Os testes não dependem dos containers Docker — usam banco em memória ou Testcontainers para PostgreSQL.
 
 ```bash
-cd produto-service
-mvn spring-boot:run
-```
+# Roda todos os testes (unitários + integração, exclui Selenium)
+mvn test -pl produto-service,pedido-service
 
-### 3. Rodar pedido-service (porta 8082)
+# Testes + relatório de cobertura (build falha se < 90% de linhas)
+mvn verify -pl produto-service,pedido-service
 
-```bash
-# Em outro terminal
-cd pedido-service
-mvn spring-boot:run
-```
-
-> Perfil `dev` é ativado por padrão. O `DataLoader` popula produtos e pedidos de exemplo automaticamente.
-
----
-
-## Acessar os serviços
-
-### produto-service (:8081)
-
-| Recurso | URL |
-|---------|-----|
-| Interface web | http://localhost:8081/produtos |
-| Swagger UI | http://localhost:8081/swagger-ui.html |
-| API REST | http://localhost:8081/api/v1/produtos |
-| Health check | http://localhost:8081/actuator/health |
-
-### pedido-service (:8082)
-
-| Recurso | URL |
-|---------|-----|
-| Interface web | http://localhost:8082/pedidos |
-| Swagger UI | http://localhost:8082/swagger-ui.html |
-| API REST | http://localhost:8082/api/v1/pedidos |
-| Health check | http://localhost:8082/actuator/health |
-
-### pgAdmin
-
-| Recurso | Valor |
-|---------|-------|
-| URL | http://localhost:5050 |
-| Email | `admin@loja.com` |
-| Senha | `admin` |
-| Banco produto | host `produto-db`, porta `5432`, db `produto_db` |
-| Banco pedido | host `pedido-db`, porta `5432`, db `pedido_db` |
-
----
-
-## Executar os testes
-
-Os testes usam H2 in-memory e não dependem dos containers.
-
-### Todos os módulos
-
-```bash
-cd sistema-loja-web
-mvn verify -B
-```
-
-### Por módulo
-
-```bash
-# produto-service
-mvn test -pl produto-service -B
-
-# pedido-service
-mvn test -pl pedido-service -B
-
-# Classe específica
-mvn test -pl pedido-service -Dtest=PedidoServiceTest -B
-```
-
-### Suite de testes — produto-service (~95 testes unitários + 15 E2E)
-
-| Classe | Tipo | Testes |
-|--------|------|--------|
-| `ProdutoServiceTest` | Mockito — service | 30 |
-| `ProdutoControllerTest` | MockMvc — MVC | 16 |
-| `ProdutoRestControllerTest` | MockMvc — REST | 15 |
-| `ProdutoTest` | Domínio (entidade) | 20 |
-| `SkuGeneratorTest` | Utilitário | 11 |
-| `CategoriaProdutoTest` | Enum | 3 |
-| `ProdutoSeleniumTest` | Selenium E2E (`@Tag("selenium")`) | 15 |
-
-### Suite de testes — pedido-service (~165 testes unitários + 18 E2E)
-
-| Classe | Tipo | Testes |
-|--------|------|--------|
-| `PedidoServiceTest` | Mockito — service | 36 |
-| `PedidoControllerTest` | MockMvc — MVC | 22 |
-| `PedidoRestControllerTest` | MockMvc — REST | 21 |
-| `PedidoParametrizadoTest` | @ParameterizedTest | ~40 |
-| `PedidoFalhaInfraTest` | Falhas de infraestrutura | 9 |
-| `PedidoServiceDTOTest` | Service — camada DTO | 12 |
-| `PedidoMapperTest` | MapStruct | 9 |
-| `ItemPedidoTest` | Domínio (item) | 9 |
-| `PedidoFuzzTest` | jqwik property-based | 6 |
-| `PedidoSeleniumTest` | Selenium E2E (`@Tag("selenium")`) | 18 |
-
-### Selenium E2E
-
-Os testes Selenium usam Chrome headless e são excluídos do ciclo `mvn verify` padrão para evitar dependência de browser no CI de build. Executar separadamente:
-
-```bash
-# Requer Chrome instalado na máquina
-mvn test -pl produto-service -Dgroups=selenium -B
-mvn test -pl pedido-service  -Dgroups=selenium -B
-```
-
-Os testes do `PedidoSeleniumTest` isolam o `ProdutoServiceClient` via `@MockBean` para não depender do produto-service em execução.
-
-### Cobertura JaCoCo
-
-```bash
-# Gerar relatório
-mvn verify -pl produto-service -B
-mvn verify -pl pedido-service -B
-
-# Abrir (Windows)
+# Abre o relatório HTML após o verify (Windows)
 start produto-service\target\site\jacoco\index.html
 start pedido-service\target\site\jacoco\index.html
 ```
 
-| Módulo | Mínimo configurado | Cobertura obtida |
-|--------|-------------------|-----------------|
-| produto-service | 90% LINE | ≥ 90% |
-| pedido-service | 90% LINE | ≥ 90% |
+**O que está coberto nos testes:**
+
+- *Unitários com Mockito*: validações de regras de negócio, transições de status, comportamentos de borda
+- *MockMvc*: controladores REST e MVC, validação de payloads, códigos HTTP e estrutura da resposta
+- *Integração com WireMock*: simula o produto-service em cenários de timeout, produto não encontrado e serviço indisponível — o pedido-service não sabe que está falando com um mock
+- *Property-based (jqwik)*: executa centenas de combinações geradas automaticamente para validar invariantes, incluindo tentativas de SQL injection e XSS nos campos de texto
+- *Selenium E2E*: navega pelas interfaces Thymeleaf como um usuário real, valida formulários, listagens e detalhes
+
+Os testes Selenium usam `@Tag("selenium")` e ficam fora do ciclo padrão. Para rodá-los é preciso ter um servidor subindo e Chrome instalado:
+
+```bash
+mvn test -pl pedido-service -Dgroups=selenium
+mvn test -pl produto-service -Dgroups=selenium
+```
+
+## Workflows GitHub Actions
+
+Os arquivos ficam em `.github/workflows/`. Para verificar execuções passadas: aba **Actions** do repositório. Para disparar manualmente qualquer workflow: **Actions → selecione o workflow → Run workflow**.
+
+**ci.yml** tem dois jobs. O primeiro — *Testes e Cobertura* — compila o projeto, executa todos os testes unitários e de integração dos dois serviços (incluindo WireMock e jqwik), gera o relatório JaCoCo e publica os resultados no painel do Actions. Se algum teste falhar ou a cobertura ficar abaixo de 90%, o job fecha com erro. O segundo job — *Selenium E2E* — só começa após o primeiro passar. Ele constrói as imagens Docker, sobe a stack completa (Eureka, produto-service, pedido-service, api-gateway, bancos), aguarda o health check do gateway ficar UP e então executa os testes Selenium dos dois serviços contra a aplicação real. Nenhum PR deve ser mergeado com esse workflow em vermelho.
+
+**code-quality.yml** roda o Checkstyle com as regras do Google Style Guide. Qualquer violação de severidade `error` quebra o build. Isso garante que o estilo de código seja consistente independente de qual IDE cada desenvolvedor usa.
+
+**security.yml** roda análise estática com GitHub CodeQL para detectar vulnerabilidades em Java (SQL injection, XSS, gerenciamento incorreto de recursos, etc.). Executa em todo push para master e semanalmente às segundas. Os resultados aparecem na aba **Security → Code scanning alerts** do repositório.
+
+**sonarqube.yml** sobe um SonarQube Community Edition como container efêmero dentro do próprio job do GitHub Actions — sem precisar de servidor externo. Após o SonarQube inicializar, o workflow gera um token de análise, executa `mvn verify sonar:sonar` com os relatórios JaCoCo e exibe o resultado do Quality Gate no log. Para ver o dashboard completo seria necessário um servidor SonarQube persistente; para uso local, veja a seção abaixo.
+
+**deploy.yml** é acionado automaticamente quando o ci.yml passa com sucesso. Constrói as imagens Docker de cada serviço usando buildx e as publica no GitHub Container Registry (`ghcr.io`) com duas tags: o SHA do commit e `latest`. Em seguida faz deploy automático no ambiente de `dev` — sobe a stack com as imagens recém-publicadas e roda os testes Selenium para validar. O deploy em `prod` fica bloqueado por um environment de proteção no GitHub: é preciso aprovação manual antes de prosseguir.
+
+## Análise de qualidade com SonarQube
+
+Para rodar localmente:
+
+```bash
+# Sobe o SonarQube junto com o restante da stack
+docker-compose up sonarqube -d
+
+# Aguarda o health check ficar UP, depois:
+mvn verify sonar:sonar \
+  -pl produto-service,pedido-service \
+  -Dsonar.host.url=http://localhost:9000 \
+  -Dsonar.login=admin \
+  -Dsonar.password=admin \
+  -Dsonar.projectKey=sistema-loja-web
+```
+
+Dashboard disponível em http://localhost:9000/dashboard?id=sistema-loja-web
+
+## O que mudou na refatoração
+
+Nos TPs anteriores os dois serviços foram desenvolvidos de forma independente, sem um padrão compartilhado entre eles. A refatoração do TP4 teve três focos: organizar o código existente, conectar os dois serviços de forma consistente e preparar a esteira de CI/CD.
+
+**Organização do código.** Cada serviço foi reestruturado em camadas bem definidas — domínio, serviço, controlador, repositório e configuração. A lógica de criação de objetos de domínio foi centralizada em fábricas dedicadas, eliminando construtores espalhados pelo código. O mapeamento entre entidades e DTOs passou a ser feito por geração de código em tempo de compilação (MapStruct), substituindo conversões manuais sujeitas a erros. A geração de SKU para produtos virou um utilitário independente, cobrível por testes unitários isolados.
+
+**Reutilização entre serviços.** Uma interface genérica de operações CRUD foi extraída e passou a ser implementada nos dois serviços, garantindo contrato comum para listagem, busca e remoção. O tratamento de exceções foi centralizado em handlers separados por protocolo: um para requisições MVC (com redirecionamento e mensagem amigável) e outro para a API REST (seguindo RFC 7807).
+
+**Integração.** A comunicação do pedido-service com o produto-service passou a ser feita via interface dedicada, substituindo chamadas HTTP diretas espalhadas pelo código. O cliente HTTP foi trocado por Apache HttpClient 5 — necessário para suporte ao método PATCH — com timeouts configuráveis (3s para conexão, 5s para leitura). Em ambiente Docker toda comunicação entre serviços passa pelo API Gateway, garantindo o roteamento centralizado e load balancing via Eureka.
 
 ---
 
-## Estrutura do projeto
+## Fluxo de status do pedido
 
-```
-sistema-loja-web/
-├── pom.xml                          Parent Maven (módulos produto-service, pedido-service)
-├── docker-compose.yml               Orquestra 5 containers
-│
-├── produto-service/                 Microsserviço de catálogo (:8081)
-│   ├── src/main/java/br/com/infnet/
-│   │   ├── config/
-│   │   │   ├── DataLoader.java           Seed de produtos de exemplo (perfil dev)
-│   │   │   └── RestTemplateConfig.java   (não utilizado neste serviço)
-│   │   ├── produto/
-│   │   │   ├── domain/
-│   │   │   │   ├── Produto.java          Entidade rica com comandos de domínio
-│   │   │   │   ├── Promocao.java         Value object @Embedded (desconto + datas)
-│   │   │   │   ├── CategoriaProduto.java Enum: MONITORES, PERIFERICOS, ARMAZENAMENTO,
-│   │   │   │   │                               COMPONENTES, AUDIO_VIDEO, GERAL
-│   │   │   │   ├── TipoOperacaoEstoque.java  Enum: ENTRADA / SAIDA
-│   │   │   │   └── SkuGenerator.java     Gera SKU único a partir do nome
-│   │   │   ├── dto/
-│   │   │   │   ├── ProdutoRequest.java
-│   │   │   │   ├── ProdutoResponse.java
-│   │   │   │   ├── AjusteEstoqueRequest.java
-│   │   │   │   └── PromocaoRequest.java
-│   │   │   ├── factory/ProdutoFactory.java
-│   │   │   ├── mapper/ProdutoMapper.java  MapStruct
-│   │   │   ├── repository/ProdutoRepository.java
-│   │   │   ├── service/ProdutoService.java
-│   │   │   └── controller/
-│   │   │       ├── ProdutoController.java      MVC /produtos
-│   │   │       └── ProdutoRestController.java  REST /api/v1/produtos
-│   │   ├── controller/
-│   │   │   ├── GlobalExceptionHandler.java
-│   │   │   └── RestExceptionHandler.java
-│   │   └── shared/
-│   │       ├── config/JpaAuditingConfig.java
-│   │       └── exception/
-│   │           ├── DomainException.java
-│   │           └── RecursoNaoEncontradoException.java
-│   └── src/main/resources/
-│       ├── application.properties
-│       ├── application-dev.properties       PostgreSQL localhost:5433
-│       ├── application-docker.properties    PostgreSQL produto-db:5432
-│       └── application-prod.properties      Variáveis de ambiente
-│
-└── pedido-service/                  Microsserviço de pedidos (:8082)
-    ├── src/main/java/br/com/infnet/
-    │   ├── client/
-    │   │   ├── ProdutoServiceClient.java      Interface do cliente HTTP
-    │   │   ├── ProdutoServiceClientImpl.java  RestTemplate (timeout 3s/5s)
-    │   │   ├── ProdutoInfo.java               DTO da resposta do produto-service
-    │   │   └── EstoqueAjusteRequest.java      DTO de ajuste de estoque
-    │   ├── config/
-    │   │   ├── DataLoader.java                Seed de pedidos de exemplo (perfil dev)
-    │   │   └── RestTemplateConfig.java        Timeout: 3s connect / 5s read
-    │   ├── pedido/
-    │   │   ├── domain/
-    │   │   │   ├── Pedido.java                Entidade principal
-    │   │   │   ├── ItemPedido.java            Item com snapshot de produto
-    │   │   │   ├── StatusPedido.java          Enum: PENDENTE, PROCESSANDO,
-    │   │   │   │                                    CONCLUIDO, CONTESTADO, CANCELADO
-    │   │   │   └── StatusHistorico.java       Audit trail de transições
-    │   │   ├── dto/
-    │   │   │   ├── PedidoRequest.java
-    │   │   │   ├── PedidoResponse.java
-    │   │   │   ├── ItemPedidoRequest.java
-    │   │   │   ├── ItemPedidoResponse.java
-    │   │   │   └── ContestarRequest.java
-    │   │   ├── factory/
-    │   │   │   ├── PedidoFactory.java
-    │   │   │   └── ItemPedidoFactory.java
-    │   │   ├── mapper/PedidoMapper.java        MapStruct
-    │   │   ├── repository/
-    │   │   │   ├── PedidoRepository.java
-    │   │   │   └── StatusHistoricoRepository.java
-    │   │   ├── service/PedidoService.java
-    │   │   └── controller/
-    │   │       ├── PedidoController.java       MVC /pedidos
-    │   │       └── PedidoRestController.java   REST /api/v1/pedidos
-    │   ├── controller/
-    │   │   ├── GlobalExceptionHandler.java
-    │   │   └── RestExceptionHandler.java       Inclui handler 502 para falha HTTP
-    │   └── shared/
-    │       ├── config/JpaAuditingConfig.java
-    │       └── exception/
-    └── src/main/resources/
-        ├── application.properties
-        ├── application-dev.properties          PostgreSQL localhost:5434
-        ├── application-docker.properties       PostgreSQL pedido-db:5432
-        └── application-prod.properties         Variáveis de ambiente
-```
-
----
-
-## Comunicação entre serviços
-
-O `pedido-service` chama o `produto-service` através de `ProdutoServiceClientImpl` (RestTemplate com timeout).
-
-### URL configurável
-
-```properties
-# application.properties (pedido-service)
-produto.service.url=http://localhost:8081        # perfil dev
-# application-docker.properties
-produto.service.url=http://produto-service:8081  # perfil docker
-```
-
-### Fluxo de integração
-
-```
-PedidoService.avancarStatus()
-       │
-       ├── PENDENTE → PROCESSANDO
-       │        └── para cada item com produtoId:
-       │               PATCH /api/v1/produtos/{id}/estoque  {"operacao":"SAIDA",  "quantidade": N}
-       │
-       └── PROCESSANDO → CANCELADO
-                └── para cada item com produtoId:
-                       PATCH /api/v1/produtos/{id}/estoque  {"operacao":"ENTRADA","quantidade": N}
-
-PedidoService.adicionarItem()
-       └── se produtoId fornecido:
-              GET /api/v1/produtos/{id}  →  auto-preenche nome, SKU e preço
-```
-
-### Resiliência
-
-- Timeout de conexão: **3 segundos**; timeout de leitura: **5 segundos**
-- Falha HTTP 4xx do produto-service → 502 Bad Gateway no pedido-service
-- Produto inativo → `DomainException` antes de adicionar item ao pedido
-
----
-
-## Máquina de estados do pedido
+Um pedido começa como PENDENTE. O avanço ao status PROCESSANDO é o único momento em que o estoque é debitado no produto-service — um item por vez, usando os IDs de produto registrados no pedido. Se o pedido for cancelado a partir de PROCESSANDO, o estoque é devolvido. Pedidos CONCLUIDOS podem ser contestados e retornar ao processamento; a partir do estado CANCELADO não há mais transições possíveis.
 
 ```
 PENDENTE ──────► PROCESSANDO ──────► CONCLUIDO
-    │                  │                  │
-    │                  │                  ▼
-    └──► CANCELADO ◄───┘         CONTESTADO ──► PROCESSANDO
-                                       │
-                                       └──► CANCELADO
+    │                 │                  │
+    └────────────────►│                  ▼
+                      └───────► CANCELADO   CONTESTADO
+                                    ▲         │   │
+                                    └─────────┘   │
+                                                  └──► PROCESSANDO
 ```
 
-| Estado Atual | Próximos estados permitidos |
-|--------------|-----------------------------|
-| PENDENTE | PROCESSANDO ¹, CANCELADO |
-| PROCESSANDO | CONCLUIDO, CANCELADO ² |
-| CONCLUIDO | CONTESTADO |
-| CONTESTADO | PROCESSANDO, CANCELADO |
-| CANCELADO | *(terminal — nenhum)* |
-
-¹ Exige pelo menos um item no pedido. Debita estoque no produto-service.
-² Devolve estoque ao produto-service para itens com `produtoId`.
-
----
-
-## API REST — produto-service
-
-Base path: `/api/v1/produtos`
-
-| Método | Endpoint | Descrição | Status |
-|--------|----------|-----------|--------|
-| `GET` | `/` | Listar ativos (paginado) | `200` |
-| `GET` | `/{id}` | Buscar por ID | `200` / `404` |
-| `GET` | `/sku/{sku}` | Buscar por SKU | `200` / `422` |
-| `POST` | `/` | Criar produto | `201` / `400` / `422` |
-| `PUT` | `/{id}` | Atualizar produto | `200` / `404` / `422` |
-| `DELETE` | `/{id}` | Remover produto | `204` / `422` |
-| `PATCH` | `/{id}/estoque` | Ajustar estoque (ENTRADA/SAIDA) | `200` / `422` |
-| `PATCH` | `/{id}/promocao` | Ativar promoção | `200` / `422` |
-| `DELETE` | `/{id}/promocao` | Encerrar promoção | `200` |
-
-Erros retornam **RFC 7807 ProblemDetail**: `400` (validação), `404` (não encontrado), `422` (regra de negócio).
+| De | Para | Observação |
+|----|------|------------|
+| PENDENTE | PROCESSANDO | Debita estoque |
+| PENDENTE | CANCELADO | Sem impacto em estoque |
+| PROCESSANDO | CONCLUIDO | — |
+| PROCESSANDO | CANCELADO | Devolve estoque |
+| CONCLUIDO | CONTESTADO | Abre contestação |
+| CONTESTADO | PROCESSANDO | Reinicia processamento |
+| CONTESTADO | CANCELADO | — |
 
 ---
 
-## API REST — pedido-service
+## Requisitos
 
-Base path: `/api/v1/pedidos`
-
-| Método | Endpoint | Descrição | Status |
-|--------|----------|-----------|--------|
-| `GET` | `/` | Listar (paginado) | `200` |
-| `GET` | `/{id}` | Buscar por ID | `200` / `404` |
-| `POST` | `/` | Criar pedido | `201` / `400` / `422` |
-| `PUT` | `/{id}` | Atualizar pedido | `200` / `404` / `422` |
-| `POST` | `/{id}/status` | Avançar status | `200` / `422` / `502` |
-| `POST` | `/{id}/contestar` | Contestar pedido | `200` / `422` |
-| `DELETE` | `/{id}` | Deletar pedido | `204` / `404` |
-| `POST` | `/{id}/itens` | Adicionar item | `200` / `422` / `502` |
-| `DELETE` | `/{id}/itens/{itemId}` | Remover item | `200` / `422` |
-| `GET` | `/{id}/itens` | Listar itens | `200` / `404` |
-
----
-
-## Decisões de design
-
-### Dois bancos de dados independentes
-Cada microsserviço possui seu próprio PostgreSQL. Não há joins entre bancos. A consistência entre estoques e pedidos é mantida via chamada REST síncrona em cada transição de status.
-
-### Snapshot de produto no item
-Quando um item é adicionado ao pedido, `nomeProduto`, `skuProduto` e `precoUnitario` são copiados para `ItemPedido`. Isso garante que alterações futuras no produto não afetam pedidos já criados.
-
-### Auto-enriquecimento opcional
-Se o campo `produtoId` for informado ao adicionar um item (via REST ou formulário web), o pedido-service busca automaticamente os dados atuais do produto-service e sobrescreve os campos do snapshot. Isso elimina erros de digitação e garante consistência com o catálogo.
-
-### Histórico de status (audit trail)
-Cada transição de status gera um registro em `pedido_status_historico` com status anterior, novo e timestamp. A timeline é exibida na tela de detalhe do pedido.
-
-### Dois handlers de exceção por serviço
-Cada serviço mantém dois `@ControllerAdvice` separados:
-- **`GlobalExceptionHandler`** — erros MVC → redirect com flash message amigável
-- **`RestExceptionHandler`** — erros REST → RFC 7807 `ProblemDetail` com tipo, título e detalhe
-
-### RestTemplate com timeout
-O `pedido-service` configura `SimpleClientHttpRequestFactory` com connect timeout de 3 s e read timeout de 5 s. Sem isso, uma falha no produto-service travaria o pedido-service indefinidamente.
-
-### Spring Profiles
-| Perfil | Banco | Uso |
-|--------|-------|-----|
-| `dev` | PostgreSQL localhost | Desenvolvimento local |
-| `docker` | PostgreSQL hostname Docker | Container |
-| `prod` | Variáveis de ambiente | Produção |
-| `test` | H2 in-memory | Testes automatizados |
+- Java 21
+- Maven 3.9+
+- Docker 24+ com Compose v2
