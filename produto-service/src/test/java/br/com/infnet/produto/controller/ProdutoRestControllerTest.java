@@ -269,6 +269,30 @@ class ProdutoRestControllerTest {
                 .andExpect(jsonPath("$.title").value("Dados inválidos"));
     }
 
+    @Test
+    @WithMockUser
+    void deveDevolver404QuandoProdutoSkuNaoExiste() throws Exception {
+        String sku = "NAO-EXISTE-001";
+        when(service.buscarPorSku(sku)).thenThrow(new ProdutoNaoEncontradoException(UUID.randomUUID()));
+
+        mockMvc.perform(get("/api/v1/produtos/sku/{sku}", sku))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Recurso não encontrado"));
+    }
+
+    @Test
+    @WithMockUser
+    void deveDevolver422AoRemoverProdutoComEstoque() throws Exception {
+        UUID id = UUID.randomUUID();
+        doThrow(new DomainException("Produto com estoque não pode ser removido. Zere o estoque antes de excluir."))
+                .when(service).remover(id);
+
+        mockMvc.perform(delete("/api/v1/produtos/{id}", id)
+                        .with(csrf()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.title").value("Regra de negócio violada"));
+    }
+
     private ProdutoResponse buildResponse(UUID id, String nome, String sku, BigDecimal preco) {
         ProdutoResponse r = new ProdutoResponse();
         r.setId(id);

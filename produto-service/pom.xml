@@ -85,6 +85,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- jqwik — property-based / fuzz testing -->
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>1.8.2</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Testcontainers — PostgreSQL real nos testes -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

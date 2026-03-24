@@ -473,6 +473,15 @@ class PedidoServiceTest {
     }
 
     @Test
+    void avancarStatus_pendenteParaProcessando_semItens_lancaDomainException() {
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        assertThatThrownBy(() -> service.avancarStatus(id, StatusPedido.PROCESSANDO))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("item");
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void avancarStatus_pendenteParaProcessando_semProdutoId_naoChama() {
         ItemPedidoRequest req = new ItemPedidoRequest(null, "Produto sem ID", null,
                 new BigDecimal("50.00"), 1);

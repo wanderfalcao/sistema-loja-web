@@ -187,4 +187,21 @@ class PedidoParametrizadoTest {
         assertThat(resultado.getDescricao()).isEqualTo(novaDesc.trim());
         assertThat(resultado.getValor()).isEqualByComparingTo(novoValor);
     }
+
+    @ParameterizedTest(name = "atualizar com descrição inválida: \"{0}\"")
+    @ValueSource(strings = {"", "   ", "\t"})
+    void atualizar_comDescricaoEmBranco_lancaDomainException(String descricao) {
+        assertThatThrownBy(() -> service.atualizar(UUID.randomUUID(), descricao, new BigDecimal("10.00"), null))
+                .isInstanceOf(DomainException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @ParameterizedTest(name = "atualizar com valor inválido: {0}")
+    @ValueSource(strings = {"0.00", "-0.01", "-50.00"})
+    void atualizar_comValorInvalido_lancaDomainException(String valorStr) {
+        assertThatThrownBy(() -> service.atualizar(UUID.randomUUID(), "Desc", new BigDecimal(valorStr), null))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("no mínimo");
+        verify(repository, never()).save(any());
+    }
 }
