@@ -5,49 +5,93 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [master, main]
+  release:
+    types: [published]
   workflow_dispatch:
 
+# ── Registries ────────────────────────────────────────────────────────────────
+# ghcr.io  → cache de build e fallback local
+# Artifact Registry (GCP) → fonte de verdade para o Cloud Run
 env:
-  REGISTRY: ghcr.io
-  PRODUTO_IMAGE: ghcr.io/${{ github.repository_owner }}/produto-service
-  PEDIDO_IMAGE: ghcr.io/${{ github.repository_owner }}/pedido-service
+  GHCR_PRODUTO: ghcr.io/${{ github.repository_owner }}/produto-service
+  GHCR_PEDIDO:  ghcr.io/${{ github.repository_owner }}/pedido-service
+  GCP_REGION:   us-central1
+  AR_REPO:      loja-web   # nome do repositório no Artifact Registry
 
 jobs:
-  # ── 1. Build e push das imagens Docker para ghcr.io ─────────────────────────
+  # ── 1. Build, push ghcr.io + Artifact Registry ──────────────────────────────
   build-and-push:
     if: >
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      id-token: write   # necessário para OIDC com GCP
 
     outputs:
-      image-tag: ${{ github.sha }}
+      image-tag:       ${{ github.sha }}
+      produto-ar-image: ${{ steps.ar-tags.outputs.produto }}
+      pedido-ar-image:  ${{ steps.ar-tags.outputs.pedido }}
 
     steps:
       - uses: actions/checkout@v4
 
+      # ── Autenticação OIDC no GCP (sem chave JSON, sem segredo estático) ──────
+      # O GitHub emite um JWT assinado com claims do repositório.
+      # O GCP valida o token via Workload Identity Federation e emite
+      # credenciais temporárias — nenhuma chave de longa duração armazenada.
+      - name: Autenticar no GCP via OIDC (Workload Identity Federation)
+        id: gcp-auth
+        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          # ex: projects/123456789/locations/global/workloadIdentityPools/github/providers/github
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          # ex: github-actions@meu-projeto.iam.gserviceaccount.com
+
+      - name: Configurar gcloud CLI
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Calcular tags do Artifact Registry
+        id: ar-tags
+        run: |
+          AR="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
+          echo "base=${AR}"            >> $GITHUB_OUTPUT
+          echo "produto=${AR}/produto-service:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "pedido=${AR}/pedido-service:${{ github.sha }}"   >> $GITHUB_OUTPUT
+
       - name: Login no GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Autorizar Docker para Artifact Registry
+        if: steps.gcp-auth.outcome == 'success'
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build único → push simultâneo para ghcr.io e Artifact Registry
       - name: Build e push — produto-service
         uses: docker/build-push-action@v5
         with:
           context: .
           file: produto-service/Dockerfile
           push: true
-          tags: ${{ env.PRODUTO_IMAGE }}:${{ github.sha }},${{ env.PRODUTO_IMAGE }}:latest
+          tags: |
+            ${{ env.GHCR_PRODUTO }}:${{ github.sha }}
+            ${{ env.GHCR_PRODUTO }}:latest
+            ${{ steps.ar-tags.outputs.produto }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to:   type=gha,mode=max
 
       - name: Build e push — pedido-service
         uses: docker/build-push-action@v5
@@ -55,130 +99,366 @@ jobs:
           context: .
           file: pedido-service/Dockerfile
           push: true
-          tags: ${{ env.PEDIDO_IMAGE }}:${{ github.sha }},${{ env.PEDIDO_IMAGE }}:latest
+          tags: |
+            ${{ env.GHCR_PEDIDO }}:${{ github.sha }}
+            ${{ env.GHCR_PEDIDO }}:latest
+            ${{ steps.ar-tags.outputs.pedido }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to:   type=gha,mode=max
 
       - name: Resumo das imagens publicadas
         run: |
-          echo "## Imagens Docker publicadas" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.PRODUTO_IMAGE }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.PEDIDO_IMAGE }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "::notice title=Imagens publicadas::produto-service e pedido-service → ghcr.io (${{ github.sha }})"
+          echo "## Imagens publicadas" >> $GITHUB_STEP_SUMMARY
+          echo "| Destino | Imagem |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ghcr.io | \`${{ env.GHCR_PRODUTO }}:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| ghcr.io | \`${{ env.GHCR_PEDIDO }}:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact Registry | \`${{ steps.ar-tags.outputs.produto }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact Registry | \`${{ steps.ar-tags.outputs.pedido }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "::notice title=Build OK::Imagens ${{ github.sha }} publicadas em ghcr.io e Artifact Registry"
 
-  # ── 2. Deploy automático no ambiente dev ─────────────────────────────────────
+  # ── 2. Deploy automático — dev ───────────────────────────────────────────────
   deploy-dev:
     needs: build-and-push
     runs-on: ubuntu-latest
-    environment: dev
+    environment: dev          # GitHub Environment com proteção opcional
+    permissions:
+      contents: read
+      id-token: write         # OIDC obrigatório
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Login no GitHub Container Registry
-        uses: docker/login-action@v3
+      # OIDC: cada ambiente pode usar uma Service Account diferente,
+      # com permissões restritas apenas ao Cloud Run do ambiente alvo.
+      - name: Autenticar no GCP via OIDC (dev)
+        id: gcp-auth
+        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Subir stack dev com imagens pré-construídas
-        env:
-          PRODUTO_SERVICE_IMAGE: ${{ env.PRODUTO_IMAGE }}:${{ github.sha }}
-          PEDIDO_SERVICE_IMAGE: ${{ env.PEDIDO_IMAGE }}:${{ github.sha }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'postgres' }}
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-          echo "::notice title=Deploy Dev::Stack subida com imagens ${{ github.sha }}"
+      - name: Configurar gcloud CLI
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Aguardar serviços ficarem saudáveis (dev)
+      # produto-service: Cloud Run escala para zero quando ocioso
+      - name: Deploy produto-service → Cloud Run dev
+        id: deploy-produto
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: produto-service-dev
+          region:  ${{ env.GCP_REGION }}
+          image:   ${{ needs.build-and-push.outputs.produto-ar-image }}
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=prod
+            SPRING_DATASOURCE_URL=${{ secrets.PRODUTO_DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.PRODUTO_DB_PASSWORD }}
+          flags: >-
+            --allow-unauthenticated
+            --port=8081
+            --memory=512Mi
+            --cpu=1
+            --min-instances=0
+            --max-instances=2
+            --timeout=60s
+
+      - name: Deploy pedido-service → Cloud Run dev
+        id: deploy-pedido
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: pedido-service-dev
+          region:  ${{ env.GCP_REGION }}
+          image:   ${{ needs.build-and-push.outputs.pedido-ar-image }}
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=prod
+            SPRING_DATASOURCE_URL=${{ secrets.PEDIDO_DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.PEDIDO_DB_PASSWORD }}
+            PRODUTO_SERVICE_URL=${{ steps.deploy-produto.outputs.url }}
+          flags: >-
+            --allow-unauthenticated
+            --port=8082
+            --memory=512Mi
+            --cpu=1
+            --min-instances=0
+            --max-instances=2
+            --timeout=60s
+
+      - name: Health check (dev)
+        if: steps.gcp-auth.outcome == 'success'
         run: |
-          echo "Aguardando produto-service..."
+          echo "Aguardando produto-service em ${{ steps.deploy-produto.outputs.url }}..."
           timeout 120 bash -c \
-            'until curl -sf http://localhost:8081/actuator/health; do sleep 5; done'
-          echo "Aguardando pedido-service..."
+            'until curl -sf "${{ steps.deploy-produto.outputs.url }}/actuator/health"; do sleep 5; done'
+          echo "Aguardando pedido-service em ${{ steps.deploy-pedido.outputs.url }}..."
           timeout 120 bash -c \
-            'until curl -sf http://localhost:8082/actuator/health; do sleep 5; done'
-          echo "::notice title=Health Check Dev::Ambos os serviços respondem a /actuator/health"
+            'until curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
+          echo "::notice title=Health Check Dev::Ambos os serviços respondem no Cloud Run dev"
 
       - uses: actions/setup-java@v4
+        if: steps.gcp-auth.outcome == 'success'
         with:
           java-version: '21'
-          distribution: 'temurin'
+          distribution: temurin
           cache: maven
 
       - name: Testes Selenium pós-deploy (dev)
-        run: mvn test -pl produto-service,pedido-service -Dgroups=selenium -Dspring.profiles.active=test -B
+        if: steps.gcp-auth.outcome == 'success'
+        run: |
+          mvn test -pl produto-service,pedido-service \
+            -Dgroups=selenium \
+            -Dspring.profiles.active=test \
+            -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
+            -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
+            -B
         continue-on-error: true
 
       - name: Upload resultados Selenium — dev
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: selenium-pos-deploy-dev
+          name: selenium-dev
           path: '**/target/surefire-reports/'
+          retention-days: 7
 
-      - name: Derrubar stack dev
+      - name: Resumo do deploy dev
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
+        run: |
+          echo "## Deploy Dev — Cloud Run" >> $GITHUB_STEP_SUMMARY
+          echo "| Serviço | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| produto-service | ${{ steps.deploy-produto.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pedido-service  | ${{ steps.deploy-pedido.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Auth** | OIDC — Workload Identity Federation |" >> $GITHUB_STEP_SUMMARY
 
-  # ── 3. Deploy em produção (requer aprovação manual) ──────────────────────────
-  deploy-prod:
+  # ── 3. Deploy automático — test ──────────────────────────────────────────────
+  deploy-test:
     needs: deploy-dev
     runs-on: ubuntu-latest
-    environment: prod
+    environment: test
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Login no GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Autenticar no GCP via OIDC (test)
+        id: gcp-auth
+        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Subir stack prod com imagens pré-construídas
-        env:
-          PRODUTO_SERVICE_IMAGE: ${{ env.PRODUTO_IMAGE }}:${{ github.sha }}
-          PEDIDO_SERVICE_IMAGE: ${{ env.PEDIDO_IMAGE }}:${{ github.sha }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'postgres' }}
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-          echo "::notice title=Deploy Prod::Deploy de produção iniciado — imagem ${{ github.sha }}"
+      - name: Configurar gcloud CLI
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Aguardar serviços ficarem saudáveis (prod)
+      - name: Deploy produto-service → Cloud Run test
+        id: deploy-produto
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: produto-service-test
+          region:  ${{ env.GCP_REGION }}
+          image:   ${{ needs.build-and-push.outputs.produto-ar-image }}
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=prod
+            SPRING_DATASOURCE_URL=${{ secrets.PRODUTO_DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.PRODUTO_DB_PASSWORD }}
+          flags: >-
+            --allow-unauthenticated
+            --port=8081
+            --memory=512Mi
+            --cpu=1
+            --min-instances=0
+            --max-instances=3
+            --timeout=60s
+
+      - name: Deploy pedido-service → Cloud Run test
+        id: deploy-pedido
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: pedido-service-test
+          region:  ${{ env.GCP_REGION }}
+          image:   ${{ needs.build-and-push.outputs.pedido-ar-image }}
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=prod
+            SPRING_DATASOURCE_URL=${{ secrets.PEDIDO_DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.PEDIDO_DB_PASSWORD }}
+            PRODUTO_SERVICE_URL=${{ steps.deploy-produto.outputs.url }}
+          flags: >-
+            --allow-unauthenticated
+            --port=8082
+            --memory=512Mi
+            --cpu=1
+            --min-instances=0
+            --max-instances=3
+            --timeout=60s
+
+      - name: Health check (test)
+        if: steps.gcp-auth.outcome == 'success'
         run: |
           timeout 120 bash -c \
-            'until curl -sf http://localhost:8081/actuator/health && \
-                   curl -sf http://localhost:8082/actuator/health; do sleep 5; done'
+            'until curl -sf "${{ steps.deploy-produto.outputs.url }}/actuator/health" && \
+                   curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
+          echo "::notice title=Health Check Test::Todos os serviços em test respondem"
+
+      - uses: actions/setup-java@v4
+        if: steps.gcp-auth.outcome == 'success'
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Testes Selenium pós-deploy (test)
+        if: steps.gcp-auth.outcome == 'success'
+        run: |
+          mvn test -pl produto-service,pedido-service \
+            -Dgroups=selenium \
+            -Dspring.profiles.active=test \
+            -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
+            -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
+            -B
+        continue-on-error: true
+
+      - name: Upload resultados Selenium — test
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selenium-test
+          path: '**/target/surefire-reports/'
+          retention-days: 7
+
+      - name: Resumo do deploy test
+        if: always()
+        run: |
+          echo "## Deploy Test — Cloud Run" >> $GITHUB_STEP_SUMMARY
+          echo "| Serviço | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| produto-service | ${{ steps.deploy-produto.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pedido-service  | ${{ steps.deploy-pedido.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Auth** | OIDC — Workload Identity Federation |" >> $GITHUB_STEP_SUMMARY
+
+  # ── 4. Deploy produção (aprovação manual obrigatória) ────────────────────────
+  deploy-prod:
+    needs: deploy-test
+    runs-on: ubuntu-latest
+    environment: prod         # bloqueia até aprovador liberar no GitHub
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Autenticar no GCP via OIDC (prod)
+        id: gcp-auth
+        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          # Em prod, a Service Account tem permissão apenas para
+          # o serviço de produção — princípio do menor privilégio
+
+      - name: Configurar gcloud CLI
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy produto-service → Cloud Run prod
+        id: deploy-produto
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: produto-service
+          region:  ${{ env.GCP_REGION }}
+          image:   ${{ needs.build-and-push.outputs.produto-ar-image }}
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=prod
+            SPRING_DATASOURCE_URL=${{ secrets.PRODUTO_DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.PRODUTO_DB_PASSWORD }}
+          flags: >-
+            --allow-unauthenticated
+            --port=8081
+            --memory=1Gi
+            --cpu=2
+            --min-instances=1
+            --max-instances=10
+            --timeout=60s
+
+      - name: Deploy pedido-service → Cloud Run prod
+        id: deploy-pedido
+        if: steps.gcp-auth.outcome == 'success'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: pedido-service
+          region:  ${{ env.GCP_REGION }}
+          image:   ${{ needs.build-and-push.outputs.pedido-ar-image }}
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=prod
+            SPRING_DATASOURCE_URL=${{ secrets.PEDIDO_DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.PEDIDO_DB_PASSWORD }}
+            PRODUTO_SERVICE_URL=${{ steps.deploy-produto.outputs.url }}
+          flags: >-
+            --allow-unauthenticated
+            --port=8082
+            --memory=1Gi
+            --cpu=2
+            --min-instances=1
+            --max-instances=10
+            --timeout=60s
+
+      - name: Health check (prod)
+        if: steps.gcp-auth.outcome == 'success'
+        run: |
+          timeout 120 bash -c \
+            'until curl -sf "${{ steps.deploy-produto.outputs.url }}/actuator/health" && \
+                   curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
           echo "::notice title=Health Check Prod::Todos os serviços em produção respondem"
 
       - uses: actions/setup-java@v4
+        if: steps.gcp-auth.outcome == 'success'
         with:
           java-version: '21'
-          distribution: 'temurin'
+          distribution: temurin
           cache: maven
 
       - name: Testes Selenium pós-deploy (prod)
-        run: mvn test -pl produto-service,pedido-service -Dgroups=selenium -Dspring.profiles.active=test -B
+        if: steps.gcp-auth.outcome == 'success'
+        run: |
+          mvn test -pl produto-service,pedido-service \
+            -Dgroups=selenium \
+            -Dspring.profiles.active=test \
+            -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
+            -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
+            -B
         continue-on-error: true
 
       - name: Upload resultados Selenium — prod
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: selenium-pos-deploy-prod
+          name: selenium-prod
           path: '**/target/surefire-reports/'
+          retention-days: 30
 
       - name: Resumo final do deploy
         if: always()
         run: |
-          echo "## Deploy de Produção" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Imagem produto-service:** \`${{ env.PRODUTO_IMAGE }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Imagem pedido-service:** \`${{ env.PEDIDO_IMAGE }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Derrubar stack prod
-        if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
+          echo "## Deploy Produção — Cloud Run" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **produto-service** | ${{ steps.deploy-produto.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **pedido-service**  | ${{ steps.deploy-pedido.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Auth** | OIDC — Workload Identity Federation |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Aprovação** | Requerida via GitHub Environment \`prod\` |" >> $GITHUB_STEP_SUMMARY
+          echo "::notice title=Deploy Prod::produto-service e pedido-service em produção — ${{ github.sha }}"
