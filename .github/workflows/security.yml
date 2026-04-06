@@ -88,16 +88,19 @@ jobs:
       - name: Build e iniciar aplicação para análise DAST
         run: |
           echo "::notice title=DAST::Iniciando análise dinâmica com OWASP ZAP"
-          echo "::debug::Compilando aplicação para análise DAST"
           mvn package -pl produto-service -DskipTests -B -q
-          java -Dspring.profiles.active=test \
-               -DSPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/produto_db \
-               -DSPRING_DATASOURCE_DRIVER=org.postgresql.Driver \
-               -DSPRING_DATASOURCE_USERNAME=postgres \
-               -DSPRING_DATASOURCE_PASSWORD=postgres \
-               -Dspring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect \
-               -Dspring.jpa.hibernate.ddl-auto=create-drop \
-               -jar produto-service/target/*.jar &
+          # Usar args Spring Boot (--) para sobrescrever datasource com máxima precedência.
+          # application-test.properties fica em src/test/resources e NÃO entra no jar,
+          # portanto não podemos usar -Dspring.profiles.active=test aqui.
+          java -jar produto-service/target/*.jar \
+            --spring.datasource.url=jdbc:postgresql://localhost:5432/produto_db \
+            --spring.datasource.driver-class-name=org.postgresql.Driver \
+            --spring.datasource.username=postgres \
+            --spring.datasource.password=postgres \
+            --spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect \
+            --spring.jpa.hibernate.ddl-auto=create-drop \
+            --spring.jpa.properties.hibernate.jdbc.time_zone=America/Sao_Paulo \
+            --eureka.client.enabled=false &
           echo "::debug::Aguardando startup da aplicação..."
           timeout 90 bash -c \
             'until curl -sf http://localhost:8081/actuator/health; do sleep 3; done'

@@ -30,7 +30,7 @@ jobs:
           cache: maven
 
       - name: Build e testes (produto-service e pedido-service)
-        run: mvn verify -B -pl produto-service,pedido-service
+        run: mvn verify -B -pl produto-service,pedido-service -Dspring.profiles.active=test
 
       - name: Publicar resultados dos testes
         uses: dorny/test-reporter@v1
