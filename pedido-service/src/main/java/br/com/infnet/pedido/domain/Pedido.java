@@ -31,7 +31,7 @@ public class Pedido {
     @Column(nullable = false, updatable = false)
     private UUID id;
 
-    @Column(nullable = false, length = MAX_DESCRICAO)
+    @Column(nullable = false, length = MAX_DESCRICAO, columnDefinition = "varchar(255)")
     private String descricao;
 
     @Embedded
@@ -42,7 +42,7 @@ public class Pedido {
     @Column(nullable = false)
     private StatusPedido status;
 
-    @Column(length = MAX_OBSERVACAO)
+    @Column(length = MAX_OBSERVACAO, columnDefinition = "varchar(500)")
     private String observacao;
 
     @CreatedDate
