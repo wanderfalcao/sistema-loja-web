@@ -2,18 +2,20 @@ package br.com.infnet.pedido.dto;
 
 import br.com.infnet.pedido.domain.StatusPedido;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@Builder
+@EqualsAndHashCode
+@ToString
 @Schema(description = "Representação pública de um pedido")
 public class PedidoResponse {
 
