@@ -23,6 +23,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -97,7 +98,7 @@ class PedidoControllerTest {
                         .param("valor", "25.00")
                         .param("observacao", "Entregar pela manhã"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/pedidos"));
+                .andExpect(redirectedUrlPattern("/pedidos/*"));
     }
 
     @Test
@@ -108,7 +109,7 @@ class PedidoControllerTest {
                         .param("descricao", "Pedido sem obs")
                         .param("valor", "10.00"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/pedidos"));
+                .andExpect(redirectedUrlPattern("/pedidos/*"));
     }
 
     @Test

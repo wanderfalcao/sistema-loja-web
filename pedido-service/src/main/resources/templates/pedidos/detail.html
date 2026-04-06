@@ -187,9 +187,7 @@
                     <li class="list-group-item" style="padding:.875rem 1.25rem;">
                         <div class="info-label">Última atualização</div>
                         <div class="info-value"
-                             th:text="${pedido.dataAtualizacao != null}
-                                        ? ${#temporals.format(pedido.dataAtualizacao,'dd/MM/yyyy HH:mm:ss')}
-                                        : '—'"></div>
+                             th:text="${pedido.dataAtualizacao != null ? #temporals.format(pedido.dataAtualizacao,'dd/MM/yyyy HH:mm:ss') : '—'}"></div>
                     </li>
                 </ul>
             </div>
