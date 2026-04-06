@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+<aside th:fragment="sidebar(activePage)" class="sidebar">
+    <a class="sidebar-brand" href="/pedidos">
+        <i class="bi bi-bag-check-fill"></i>
+        <span>LojaSys</span>
+    </a>
+    <nav class="sidebar-nav">
+        <a href="/produtos"
+           th:classappend="${activePage == 'produtos'} ? ' active'"
+           class="sidebar-nav-item">
+            <i class="bi bi-box-seam"></i>
+            <span>Produtos</span>
+        </a>
+        <a th:href="@{/pedidos}"
+           th:classappend="${activePage == 'pedidos'} ? ' active'"
+           class="sidebar-nav-item">
+            <i class="bi bi-receipt"></i>
+            <span>Pedidos</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <span>LojaSys &copy; 2025</span>
+    </div>
+</aside>
+
+<!-- ── Mobile topbar ────────────────────────────────────────────────────── -->
+<div th:fragment="topbar-mobile" class="mobile-topbar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+    <span class="mobile-brand">LojaSys</span>
+</div>
+
+</html>

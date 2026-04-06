@@ -24,31 +24,94 @@ body {
     color: var(--text);
     margin: 0;
     min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 240px;
+    background: var(--primary);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    transition: transform .25s ease;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 1.25rem 1.5rem;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.sidebar-brand i { font-size: 1.3rem; color: #818CF8; }
+.sidebar-brand:hover { color: #e0e7ff; }
+
+.sidebar-nav {
+    flex: 1;
+    padding: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: .65rem 1.5rem;
+    color: rgba(255,255,255,.65);
+    text-decoration: none;
+    font-size: .9rem;
+    font-weight: 500;
+    transition: background .15s, color .15s;
+    margin: 0 .5rem;
+    border-radius: 8px;
+}
+.sidebar-nav-item i { font-size: 1.1rem; }
+.sidebar-nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+.sidebar-nav-item.active { background: var(--primary-btn); color: #fff; }
+
+.sidebar-footer {
+    padding: 1rem 1.5rem;
+    font-size: .75rem;
+    color: rgba(255,255,255,.35);
+    border-top: 1px solid rgba(255,255,255,.08);
+}
+
+/* ── Layout com sidebar ───────────────────────────────────── */
+.main-wrapper {
+    margin-left: 240px;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
 
-/* ── Topbar ──────────────────────────────────────────────── */
-.topbar {
-    background: var(--primary);
-    color: #fff;
+.main {
+    flex: 1;
+    max-width: 1200px;
+    width: 100%;
+    padding: 2rem;
+}
+
+.page-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: .75rem 1.5rem;
-    flex-wrap: wrap;
-    gap: .5rem;
+    margin-bottom: 1.5rem;
 }
-.topbar-brand {
-    color: #fff;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+
+.page-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
 }
-.topbar-brand:hover { color: #e0e7ff; }
 
 .btn-new {
     background: var(--primary-btn);
@@ -66,13 +129,34 @@ body {
 }
 .btn-new:hover { background: #3451c4; color: #fff; }
 
-/* ── Layout principal ────────────────────────────────────── */
-.main {
-    flex: 1;
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 1.5rem 1rem;
-    width: 100%;
+/* ── Mobile ───────────────────────────────────────────────── */
+.mobile-topbar {
+    display: none;
+    align-items: center;
+    gap: 1rem;
+    padding: .75rem 1rem;
+    background: var(--primary);
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+}
+.mobile-brand { font-weight: 700; color: #fff; }
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+@media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main-wrapper { margin-left: 0; }
+    .mobile-topbar { display: flex; }
+    .main { padding: 1.25rem 1rem; }
 }
 
 /* ── Alertas ─────────────────────────────────────────────── */
@@ -82,28 +166,3 @@ body {
 
 /* ── Breadcrumb ──────────────────────────────────────────── */
 .breadcrumb { font-size: .875rem; }
-
-/* ── Footer ──────────────────────────────────────────────── */
-.app-footer {
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    padding: .75rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: .5rem;
-    font-size: .75rem;
-    color: var(--muted);
-}
-.app-footer i { font-size: .85rem; opacity: .7; }
-.app-footer-dot { color: var(--border); }
-
-/* ── Responsivo — mobile first ───────────────────────────── */
-@media (max-width: 768px) {
-    .main    { padding: 1rem .75rem; }
-    .topbar  { padding: .6rem 1rem; }
-}
-@media (max-width: 480px) {
-    .topbar-brand { font-size: 1rem; }
-    .btn-new { font-size: .8rem; padding: .35rem .75rem; }
-}
