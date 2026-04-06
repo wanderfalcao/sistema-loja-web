@@ -43,6 +43,11 @@ public final class Dinheiro {
         return quantia;
     }
 
+    /** Alias JavaBeans para compatibilidade com Thymeleaf e Spring EL. */
+    public BigDecimal getQuantia() {
+        return quantia;
+    }
+
     /** Retorna a soma deste valor com {@code outro}. */
     public Dinheiro somar(Dinheiro outro) {
         return new Dinheiro(this.quantia.add(outro.quantia));

@@ -18,19 +18,21 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
     boolean existsByNomeIgnoreCase(String nome);
     boolean existsByNomeIgnoreCaseAndIdNot(String nome, UUID id);
 
-    boolean existsBySkuIgnoreCase(String sku);
-    boolean existsBySkuIgnoreCaseAndIdNot(String sku, UUID id);
+    boolean existsBySku(br.com.infnet.produto.domain.Sku sku);
+    boolean existsBySkuAndIdNot(br.com.infnet.produto.domain.Sku sku, UUID id);
 
-    java.util.Optional<Produto> findBySkuIgnoreCase(String sku);
+    java.util.Optional<Produto> findBySku(br.com.infnet.produto.domain.Sku sku);
 
     List<Produto> findAllByCategoria(CategoriaProduto categoria);
 
     boolean existsByCategoriaAndAtivoTrue(CategoriaProduto categoria);
 
+    Page<Produto> findAllByCategoria(CategoriaProduto categoria, Pageable pageable);
+
     @org.springframework.data.jpa.repository.Query("SELECT p FROM Produto p WHERE " +
-            "(:nome IS NULL OR LOWER(p.nome) LIKE LOWER(CONCAT('%',:nome,'%'))) AND " +
-            "(:categoria IS NULL OR p.categoria = :categoria)")
-    Page<Produto> filtrar(@org.springframework.data.repository.query.Param("nome") String nome,
-                          @org.springframework.data.repository.query.Param("categoria") CategoriaProduto categoria,
-                          Pageable pageable);
+            "(:categoria IS NULL OR p.categoria = :categoria) AND " +
+            "LOWER(p.nome) LIKE CONCAT('%', :nome, '%')")
+    Page<Produto> filtrarComNome(@org.springframework.data.repository.query.Param("nome") String nome,
+                                  @org.springframework.data.repository.query.Param("categoria") CategoriaProduto categoria,
+                                  Pageable pageable);
 }

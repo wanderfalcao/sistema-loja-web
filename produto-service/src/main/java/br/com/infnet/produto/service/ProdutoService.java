@@ -81,7 +81,7 @@ public class ProdutoService implements CrudService<Produto, UUID> {
 
         Produto produto = ProdutoFactory.criar(request);
 
-        if (repository.existsBySkuIgnoreCase(produto.getSku().codigo()))
+        if (repository.existsBySku(produto.getSku()))
             throw new DomainException("SKU já cadastrado: " + produto.getSku().codigo());
 
         validarAtivacaoComEstoque(produto);
@@ -114,13 +114,15 @@ public class ProdutoService implements CrudService<Produto, UUID> {
 
     @Transactional(readOnly = true)
     public Page<Produto> filtrar(String nome, CategoriaProduto categoria, Pageable pageable) {
-        String nomeNorm = (nome != null && !nome.isBlank()) ? nome.trim() : null;
-        return repository.filtrar(nomeNorm, categoria, pageable);
+        String nomeNorm = (nome != null && !nome.isBlank()) ? nome.trim().toLowerCase() : null;
+        if (nomeNorm == null && categoria == null) return repository.findAll(pageable);
+        if (nomeNorm == null)                      return repository.findAllByCategoria(categoria, pageable);
+        return repository.filtrarComNome(nomeNorm, categoria, pageable);
     }
 
     @Transactional(readOnly = true)
     public ProdutoResponse buscarPorSku(String sku) {
-        return repository.findBySkuIgnoreCase(sku)
+        return repository.findBySku(br.com.infnet.produto.domain.Sku.de(sku))
                 .map(mapper::toResponse)
                 .orElseThrow(() -> new DomainException("Produto não encontrado para SKU: " + sku));
     }

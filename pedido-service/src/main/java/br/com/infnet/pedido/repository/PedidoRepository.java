@@ -24,10 +24,12 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
     @Query("SELECT SUM(p.valor.quantia) FROM Pedido p WHERE p.status <> br.com.infnet.pedido.domain.StatusPedido.CANCELADO")
     java.math.BigDecimal somarValoresAtivos();
 
+    Page<Pedido> findAllByStatus(StatusPedido status, Pageable pageable);
+
     @Query("SELECT p FROM Pedido p WHERE " +
            "(:status IS NULL OR p.status = :status) AND " +
-           "(:descricao IS NULL OR LOWER(p.descricao) LIKE LOWER(CONCAT('%',:descricao,'%')))")
-    Page<Pedido> filtrar(@Param("status") StatusPedido status,
-                         @Param("descricao") String descricao,
-                         Pageable pageable);
+           "LOWER(p.descricao) LIKE CONCAT('%', :descricao, '%')")
+    Page<Pedido> filtrarComDescricao(@Param("status") StatusPedido status,
+                                     @Param("descricao") String descricao,
+                                     Pageable pageable);
 }

@@ -41,6 +41,11 @@ public final class Quantidade {
         return inteiro;
     }
 
+    /** Alias JavaBeans para compatibilidade com Thymeleaf e Spring EL. */
+    public int getInteiro() {
+        return inteiro;
+    }
+
     /** Retorna a soma desta quantidade com {@code outra}. */
     public Quantidade somar(Quantidade outra) {
         return new Quantidade(this.inteiro + outra.inteiro);

@@ -45,6 +45,11 @@ public final class Sku {
         return codigo;
     }
 
+    /** Alias JavaBeans para compatibilidade com Thymeleaf e Spring EL. */
+    public String getCodigo() {
+        return codigo;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
