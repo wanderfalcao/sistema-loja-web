@@ -21,7 +21,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
 
     long countByStatus(StatusPedido status);
 
-    @Query("SELECT SUM(p.valor) FROM Pedido p WHERE p.status <> br.com.infnet.pedido.domain.StatusPedido.CANCELADO")
+    @Query("SELECT SUM(p.valor.quantia) FROM Pedido p WHERE p.status <> br.com.infnet.pedido.domain.StatusPedido.CANCELADO")
     java.math.BigDecimal somarValoresAtivos();
 
     @Query("SELECT p FROM Pedido p WHERE " +

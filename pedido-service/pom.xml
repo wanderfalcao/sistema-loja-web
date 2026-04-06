@@ -177,12 +177,12 @@
                 </configuration>
             </plugin>
 
-            <!-- Surefire — exclui testes @Tag("selenium") do ciclo padrão -->
+            <!-- Surefire — exclui testes @Tag("selenium") e @Tag("integration") do ciclo padrão -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <excludedGroups>selenium</excludedGroups>
+                    <excludedGroups>selenium,integration</excludedGroups>
                 </configuration>
             </plugin>
 

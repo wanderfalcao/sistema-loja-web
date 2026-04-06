@@ -84,9 +84,9 @@ public class ProdutoController {
         model.addAttribute("titulo", "Editar Produto");
         model.addAttribute("acao", "/produtos/" + id);
         model.addAttribute("nome", produto.getNome());
-        model.addAttribute("preco", produto.getPreco());
+        model.addAttribute("preco", produto.getPreco().quantia());
         model.addAttribute("descricao", produto.getDescricao());
-        model.addAttribute("estoque", produto.getEstoque());
+        model.addAttribute("estoque", produto.getEstoque().inteiro());
         model.addAttribute("ativo", produto.getAtivo());
         model.addAttribute("categorias", CategoriaProduto.values());
         model.addAttribute("categoriaSelecionada", produto.getCategoria());
