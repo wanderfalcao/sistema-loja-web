@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ── SAST: Análise estática com CodeQL ────────────────────────────────────────
   codeql:
     name: Análise CodeQL (SAST)
     runs-on: ubuntu-latest
@@ -32,9 +33,75 @@ jobs:
           queries: security-and-quality
 
       - name: Compilar para análise (sem testes)
-        run: mvn compile -B -DskipTests
+        run: |
+          echo "::notice title=SAST::Iniciando análise estática com CodeQL"
+          mvn compile -B -DskipTests
 
       - name: Executar análise CodeQL
         uses: github/codeql-action/analyze@v3
         with:
           category: java
+
+      - name: Resumo SAST
+        if: always()
+        run: |
+          echo "## Análise SAST — CodeQL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ferramenta:** GitHub CodeQL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Linguagem:** Java 21" >> $GITHUB_STEP_SUMMARY
+          echo "- **Queries:** security-and-quality" >> $GITHUB_STEP_SUMMARY
+          echo "- **Resultados:** disponíveis em Security → Code scanning alerts" >> $GITHUB_STEP_SUMMARY
+
+  # ── DAST: Análise dinâmica com OWASP ZAP ─────────────────────────────────────
+  dast:
+    name: Análise OWASP ZAP (DAST)
+    runs-on: ubuntu-latest
+    needs: codeql
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build e iniciar aplicação para análise DAST
+        run: |
+          echo "::notice title=DAST::Iniciando análise dinâmica com OWASP ZAP"
+          echo "::debug::Compilando aplicação para análise DAST"
+          mvn package -pl produto-service -DskipTests -B -q
+          java -Dspring.profiles.active=test \
+               -jar produto-service/target/*.jar &
+          echo "::debug::Aguardando startup da aplicação..."
+          timeout 60 bash -c \
+            'until curl -sf http://localhost:8081/actuator/health; do sleep 3; done'
+          echo "::notice title=DAST::Aplicação disponível em http://localhost:8081"
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:8081'
+          cmd_options: '-I'
+          allow_issue_writing: false
+
+      - name: Upload relatório ZAP
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report_html.html
+          retention-days: 14
+
+      - name: Resumo DAST
+        if: always()
+        run: |
+          echo "## Análise DAST — OWASP ZAP" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ferramenta:** OWASP ZAP Baseline Scan" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alvo:** http://localhost:8081 (produto-service)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Relatório:** disponível nos artefatos do job (zap-report)" >> $GITHUB_STEP_SUMMARY
+          echo "::notice title=DAST::Análise OWASP ZAP concluída — verifique o artefato zap-report"
