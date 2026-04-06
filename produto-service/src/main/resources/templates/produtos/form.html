@@ -93,9 +93,9 @@
             </div>
 
             <div class="mb-3">
-                <label for="categoria" class="form-label">Categoria <span class="text-muted fw-normal small">(opcional)</span></label>
-                <select id="categoria" name="categoria" class="form-select form-select-lg">
-                    <option value="">— Sem categoria —</option>
+                <label for="categoria" class="form-label">Categoria <span class="text-danger">*</span></label>
+                <select id="categoria" name="categoria" class="form-select form-select-lg" required>
+                    <option value="">— Selecione uma categoria —</option>
                     <option th:each="cat : ${categorias}"
                             th:value="${cat.name()}"
                             th:text="${cat.label}"

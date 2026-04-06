@@ -18,7 +18,10 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.dao.TransientDataAccessResourceException;
 
+import br.com.infnet.pedido.dto.ItemPedidoRequest;
+
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -78,7 +81,8 @@ class PedidoFalhaInfraTest {
         when(repository.save(any()))
                 .thenThrow(new QueryTimeoutException("Timeout ao salvar"));
 
-        assertThatThrownBy(() -> service.criar("Pedido", new BigDecimal("10.00")))
+        ItemPedidoRequest item = new ItemPedidoRequest(null, "Monitor", null, new BigDecimal("10.00"), 1);
+        assertThatThrownBy(() -> service.criarComItens(List.of(item), null))
                 .isInstanceOf(QueryTimeoutException.class);
     }
 
@@ -96,7 +100,8 @@ class PedidoFalhaInfraTest {
         when(repository.save(any()))
                 .thenThrow(new TransientDataAccessResourceException("Conexão recusada"));
 
-        assertThatThrownBy(() -> service.criar("Desc", new BigDecimal("5.00")))
+        ItemPedidoRequest item = new ItemPedidoRequest(null, "Produto", null, new BigDecimal("5.00"), 1);
+        assertThatThrownBy(() -> service.criarComItens(List.of(item), null))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("Conexão recusada");
     }
@@ -134,12 +139,14 @@ class PedidoFalhaInfraTest {
 
         int total = 50;
         for (int i = 1; i <= total; i++) {
-            Pedido p = service.criar("Pedido " + i, new BigDecimal(i + ".00"));
+            ItemPedidoRequest item = new ItemPedidoRequest(null, "Produto " + i, null, new BigDecimal(i + ".00"), 1);
+            Pedido p = service.criarComItens(List.of(item), null);
             assertThat(p.getId()).isNotNull();
-            assertThat(p.getDescricao()).isEqualTo("Pedido " + i);
+            assertThat(p.getItens()).hasSize(1);
         }
 
-        verify(repository, times(total)).save(any(Pedido.class));
+        // cada criarComItens faz 2 saves (novoVazio + sincronizar), portanto total * 2
+        verify(repository, times(total * 2)).save(any(Pedido.class));
     }
 
     @Test

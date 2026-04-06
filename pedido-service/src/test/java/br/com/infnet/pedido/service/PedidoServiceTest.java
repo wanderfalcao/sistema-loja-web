@@ -2,7 +2,6 @@ package br.com.infnet.pedido.service;
 
 import br.com.infnet.client.ProdutoInfo;
 import br.com.infnet.client.TipoOperacaoEstoque;
-import br.com.infnet.pedido.domain.Dinheiro;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusHistorico;
 import br.com.infnet.pedido.domain.StatusPedido;
@@ -70,7 +69,6 @@ class PedidoServiceTest {
     @BeforeEach
     void setUp() {
         pedidoPendente = PedidoTestFactory.pedidoPendente();
-        pedidoPendente.atualizar("Pedido Teste", Dinheiro.de(new BigDecimal("50.00")), null);
         id = pedidoPendente.getId();
     }
 
@@ -102,46 +100,27 @@ class PedidoServiceTest {
     }
 
     @Test
-    void criar_salvaPedido_comStatusPendente() {
+    void criarComItens_salvaPedido_comStatusPendente() {
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-        Pedido salvo = service.criar("Novo", new BigDecimal("10.00"));
+        var req = new br.com.infnet.pedido.dto.ItemPedidoRequest(
+                null, "Monitor 4K", null, new BigDecimal("2500.00"), 1);
+        Pedido salvo = service.criarComItens(List.of(req), null);
         assertThat(salvo.getStatus()).isEqualTo(StatusPedido.PENDENTE);
-        verify(repository).save(any(Pedido.class));
+        verify(repository, atLeastOnce()).save(any(Pedido.class));
     }
 
     @Test
-    void criar_lancaDomainException_quandoDescricaoVazia() {
-        assertThatThrownBy(() -> service.criar("", new BigDecimal("10.00")))
-                .isInstanceOf(DomainException.class);
-        verify(repository, never()).save(any());
-    }
-
-    @Test
-    void criar_lancaDomainException_quandoValorZero() {
-        assertThatThrownBy(() -> service.criar("Ok", BigDecimal.ZERO))
-                .isInstanceOf(DomainException.class);
-        verify(repository, never()).save(any());
-    }
-
-    @Test
-    void criar_lancaDomainException_quandoValorNegativo() {
-        assertThatThrownBy(() -> service.criar("Ok", new BigDecimal("-1")))
-                .isInstanceOf(DomainException.class);
-    }
-
-    @Test
-    void atualizar_alteraDescricaoEValor() {
+    void atualizarObservacao_alteraObservacao() {
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-        Pedido atualizado = service.atualizar(id, "Nova desc", new BigDecimal("99.99"), null);
-        assertThat(atualizado.getDescricao()).isEqualTo("Nova desc");
-        assertThat(atualizado.getValor().quantia()).isEqualByComparingTo("99.99");
+        Pedido atualizado = service.atualizarObservacao(id, "nova observacao");
+        assertThat(atualizado.getObservacao()).isEqualTo("nova observacao");
     }
 
     @Test
-    void atualizar_lancaExcecao_quandoPedidoNaoEncontrado() {
+    void atualizarObservacao_lancaExcecao_quandoPedidoNaoEncontrado() {
         when(repository.findById(id)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.atualizar(id, "X", new BigDecimal("1"), null))
+        assertThatThrownBy(() -> service.atualizarObservacao(id, "obs"))
                 .isInstanceOf(PedidoNaoEncontradoException.class);
     }
 
@@ -281,25 +260,6 @@ class PedidoServiceTest {
         when(repository.findById(id)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.deletar(id))
                 .isInstanceOf(PedidoNaoEncontradoException.class);
-    }
-
-    @Test
-    void criar_lancaDomainException_quandoDescricaoNula() {
-        assertThatThrownBy(() -> service.criar(null, new BigDecimal("10")))
-                .isInstanceOf(DomainException.class);
-    }
-
-    @Test
-    void criar_lancaDomainException_quandoValorNulo() {
-        assertThatThrownBy(() -> service.criar("Ok", null))
-                .isInstanceOf(DomainException.class);
-    }
-
-    @Test
-    void criar_lancaDomainException_quandoDescricaoMaior255() {
-        String longa = "a".repeat(Pedido.MAX_DESCRICAO + 1);
-        assertThatThrownBy(() -> service.criar(longa, new BigDecimal("10")))
-                .isInstanceOf(DomainException.class);
     }
 
     @Test

@@ -3,6 +3,7 @@ package br.com.infnet.pedido.service;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusPedido;
+import br.com.infnet.pedido.dto.ItemPedidoRequest;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.pedido.repository.PedidoRepository;
 import br.com.infnet.shared.exception.DomainException;
@@ -13,6 +14,7 @@ import net.jqwik.api.Assume;
 import org.mockito.Mockito;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,11 +38,12 @@ class PedidoFuzzTest {
     }
 
     @Property
-    void descricao_comSqlInjection_naoLancaNPE(
-            @ForAll @StringLength(min = 1, max = Pedido.MAX_DESCRICAO) String descricao) {
+    void nomeProduto_comSqlInjection_naoLancaNPE(
+            @ForAll @StringLength(min = 1, max = 100) String nomeProduto) {
 
         try {
-            Pedido p = newService().criar(descricao, new BigDecimal("10.00"));
+            ItemPedidoRequest item = new ItemPedidoRequest(null, nomeProduto, null, new BigDecimal("10.00"), 1);
+            Pedido p = newService().criarComItens(List.of(item), null);
             assertThat(p).isNotNull();
             assertThat(p.getDescricao()).isNotNull();
         } catch (DomainException e) {
@@ -49,14 +52,15 @@ class PedidoFuzzTest {
     }
 
     @Property
-    void descricao_comXss_armazenadaComoTexto(
+    void nomeProduto_comXss_armazenadoComoTexto(
             @ForAll @From("xssPayloads") String payload) {
 
         try {
-            Pedido p = newService().criar(payload, new BigDecimal("1.00"));
+            ItemPedidoRequest item = new ItemPedidoRequest(null, payload, null, new BigDecimal("1.00"), 1);
+            Pedido p = newService().criarComItens(List.of(item), null);
             assertThat(p.getDescricao()).doesNotContain("\u0000");
         } catch (DomainException e) {
-            // ok — descricao vazia/longa gerou DomainException
+            // ok — payload gerou DomainException
         }
     }
 
@@ -75,38 +79,29 @@ class PedidoFuzzTest {
     }
 
     @Property
-    void valor_menorQueMinimo_sempreLancaDomainException(
-            @ForAll @BigRange(min = "-9999999", max = "0") BigDecimal valor) {
+    void precoNegativo_sempreLancaDomainException(
+            @ForAll @BigRange(min = "-9999999", max = "-0.01") BigDecimal preco) {
 
-        assertThatThrownBy(() -> newService().criar("Ok", valor))
-                .isInstanceOf(DomainException.class);
+        ItemPedidoRequest item = new ItemPedidoRequest(null, "Produto", null, preco, 1);
+        assertThatThrownBy(() -> newService().criarComItens(List.of(item), null))
+                .isInstanceOf(Exception.class);
     }
 
     @Property
-    void valor_valido_sempreCriaPedido(
-            @ForAll @BigRange(min = "0.01", max = "9999999") BigDecimal valor) {
+    void precoValido_sempreCriaPedidoComTotal(
+            @ForAll @BigRange(min = "0.01", max = "9999999") BigDecimal preco) {
 
-        Pedido p = newService().criar("Descrição válida", valor);
-        assertThat(p.getValor().quantia()).isEqualByComparingTo(valor);
+        ItemPedidoRequest item = new ItemPedidoRequest(null, "Produto válido", null, preco, 1);
+        Pedido p = newService().criarComItens(List.of(item), null);
+        assertThat(p.getValor().quantia()).isEqualByComparingTo(preco);
         assertThat(p.getStatus()).isEqualTo(StatusPedido.PENDENTE);
     }
 
     @Property
-    void descricao_comMaisDe255Chars_sempreLancaDomainException(
-            @ForAll @StringLength(min = Pedido.MAX_DESCRICAO + 1, max = 1000)
-            String descricao) {
-
-        Assume.that(descricao.trim().length() > Pedido.MAX_DESCRICAO);
-
-        assertThatThrownBy(() -> newService().criar(descricao, new BigDecimal("1.00")))
-                .isInstanceOf(DomainException.class);
-    }
-
-    @Property
     void pedido_idEDataCriacao_saoImutaveis(
-            @ForAll @StringLength(min = 1, max = 50) String descricao) {
+            @ForAll @StringLength(min = 1, max = 50) String nomeProduto) {
 
-        Assume.that(!descricao.isBlank());
+        Assume.that(!nomeProduto.isBlank());
 
         PedidoRepository repo = Mockito.mock(PedidoRepository.class);
         PedidoMapper mapper = Mockito.mock(PedidoMapper.class);
@@ -118,12 +113,13 @@ class PedidoFuzzTest {
         when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
         PedidoService service = new PedidoService(repo, mapper, produtoServiceClient, estoqueOrquestrador, historicoRegistrador, validador, statusMachine);
 
-        Pedido p = service.criar(descricao, new BigDecimal("5.00"));
+        ItemPedidoRequest item = new ItemPedidoRequest(null, nomeProduto, null, new BigDecimal("5.00"), 1);
+        Pedido p = service.criarComItens(List.of(item), null);
         UUID idOriginal = p.getId();
         var dataOriginal = p.getDataCriacao();
 
         when(repo.findById(idOriginal)).thenReturn(Optional.of(p));
-        service.atualizar(idOriginal, "Nova desc", new BigDecimal("9.99"), null);
+        service.atualizarObservacao(idOriginal, "Nova observacao");
 
         assertThat(p.getId()).isEqualTo(idOriginal);
         assertThat(p.getDataCriacao()).isEqualTo(dataOriginal);

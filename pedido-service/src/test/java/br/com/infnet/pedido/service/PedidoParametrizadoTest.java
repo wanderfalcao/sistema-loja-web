@@ -1,5 +1,6 @@
 package br.com.infnet.pedido.service;
 
+import br.com.infnet.pedido.dto.ItemPedidoRequest;
 import br.com.infnet.pedido.factory.PedidoTestFactory;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusPedido;
@@ -16,6 +17,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -56,41 +58,25 @@ class PedidoParametrizadoTest {
     @InjectMocks
     PedidoService service;
 
-    @ParameterizedTest(name = "criar pedido: desc=\"{0}\" valor={1}")
+    @ParameterizedTest(name = "criarComItens: nomeProduto=\"{0}\" precoUnitario={1}")
     @CsvSource({
-        "Pedido simples,          10.00",
-        "Pedido com vírgula,       0.01",
-        "Pedido valor alto,    99999.99",
-        "Café expresso,            3.50",
-        "Produto A B C,           50.00",
-        "  Espaços nas bordas  ,  20.00"
+        "Monitor 4K,          10.00",
+        "Teclado Mecânico,     0.01",
+        "Mouse Gamer,      99999.99",
+        "Café expresso,         3.50",
+        "Produto A B C,        50.00",
+        "Headset Pro,          20.00"
     })
-    void criar_comDadosValidos_salvaPedido(String descricao, BigDecimal valor) {
+    void criarComItens_comItensValidos_salvaPedido(String nomeProduto, BigDecimal precoUnitario) {
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        Pedido p = service.criar(descricao, valor);
+        ItemPedidoRequest item = new ItemPedidoRequest(null, nomeProduto, null, precoUnitario, 1);
+        Pedido p = service.criarComItens(List.of(item), null);
 
-        assertThat(p.getDescricao()).isNotBlank();
-        assertThat(p.getValor().quantia()).isEqualByComparingTo(valor);
         assertThat(p.getStatus()).isEqualTo(StatusPedido.PENDENTE);
         assertThat(p.getId()).isNotNull();
-    }
-
-    @ParameterizedTest(name = "criar com descrição inválida: \"{0}\"")
-    @ValueSource(strings = {"", "   ", "\t", "\n"})
-    void criar_comDescricaoEmBranco_lancaDomainException(String descricao) {
-        assertThatThrownBy(() -> service.criar(descricao, new BigDecimal("10.00")))
-                .isInstanceOf(DomainException.class);
-        verify(repository, never()).save(any());
-    }
-
-    @ParameterizedTest(name = "criar com valor inválido: {0}")
-    @ValueSource(strings = {"0.00", "-0.01", "-100", "-9999999.99"})
-    void criar_comValorAbaixoDoMinimo_lancaDomainException(String valorStr) {
-        BigDecimal valor = new BigDecimal(valorStr);
-        assertThatThrownBy(() -> service.criar("Desc válida", valor))
-                .isInstanceOf(DomainException.class)
-                .hasMessageContaining("no mínimo");
+        assertThat(p.getItens()).hasSize(1);
+        assertThat(p.getValor().quantia()).isEqualByComparingTo(precoUnitario);
     }
 
     // Transições que realmente mudam estado → save deve ser chamado
@@ -178,38 +164,16 @@ class PedidoParametrizadoTest {
         );
     }
 
-    @ParameterizedTest(name = "atualizar: nova desc=\"{0}\" novo valor={1}")
-    @CsvSource({
-        "Nova descrição,    15.00",
-        "Atualizado,         0.01",
-        "Outro nome,     1000.00"
-    })
-    void atualizar_comDadosValidos_persisteAlteracoes(String novaDesc, BigDecimal novoValor) {
+    @ParameterizedTest(name = "atualizarObservacao: novaObs=\"{0}\"")
+    @ValueSource(strings = {"Entregar pela manhã", "Sem urgência", "Urgente!", ""})
+    void atualizarObservacao_comDiversasObs_persisteAlteracoes(String novaObs) {
         Pedido pedido = PedidoTestFactory.pedidoCom(StatusPedido.PENDENTE);
         UUID id = pedido.getId();
         when(repository.findById(id)).thenReturn(Optional.of(pedido));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        Pedido resultado = service.atualizar(id, novaDesc, novoValor, null);
+        Pedido resultado = service.atualizarObservacao(id, novaObs);
 
-        assertThat(resultado.getDescricao()).isEqualTo(novaDesc.trim());
-        assertThat(resultado.getValor().quantia()).isEqualByComparingTo(novoValor);
-    }
-
-    @ParameterizedTest(name = "atualizar com descrição inválida: \"{0}\"")
-    @ValueSource(strings = {"", "   ", "\t"})
-    void atualizar_comDescricaoEmBranco_lancaDomainException(String descricao) {
-        assertThatThrownBy(() -> service.atualizar(UUID.randomUUID(), descricao, new BigDecimal("10.00"), null))
-                .isInstanceOf(DomainException.class);
-        verify(repository, never()).save(any());
-    }
-
-    @ParameterizedTest(name = "atualizar com valor inválido: {0}")
-    @ValueSource(strings = {"0.00", "-0.01", "-50.00"})
-    void atualizar_comValorInvalido_lancaDomainException(String valorStr) {
-        assertThatThrownBy(() -> service.atualizar(UUID.randomUUID(), "Desc", new BigDecimal(valorStr), null))
-                .isInstanceOf(DomainException.class)
-                .hasMessageContaining("no mínimo");
-        verify(repository, never()).save(any());
+        assertThat(resultado.getObservacao()).isEqualTo(novaObs);
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -88,7 +89,7 @@ class PedidoIntegracaoClientTest {
         wireMockServer.stubFor(patch(urlEqualTo("/api/v1/produtos/" + produtoId + "/estoque"))
                 .willReturn(aResponse().withStatus(200)));
 
-        Pedido pedido = pedidoService.criar("Pedido de integração", new BigDecimal("350.00"), null);
+        Pedido pedido = pedidoService.criarComItens(List.of(), null);
         ItemPedidoRequest item = new ItemPedidoRequest();
         item.setProdutoId(produtoId);
         item.setQuantidade(2);
@@ -122,7 +123,7 @@ class PedidoIntegracaoClientTest {
         wireMockServer.stubFor(patch(urlEqualTo("/api/v1/produtos/" + produtoId + "/estoque"))
                 .willReturn(aResponse().withStatus(200)));
 
-        Pedido pedido = pedidoService.criar("Pedido para cancelar", new BigDecimal("200.00"), null);
+        Pedido pedido = pedidoService.criarComItens(List.of(), null);
         ItemPedidoRequest item = new ItemPedidoRequest();
         item.setProdutoId(produtoId);
         item.setQuantidade(1);
@@ -155,7 +156,7 @@ class PedidoIntegracaoClientTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody(objectMapper.writeValueAsString(produtoInfo))));
 
-        Pedido pedido = pedidoService.criar("Pedido monitor", new BigDecimal("1500.00"), null);
+        Pedido pedido = pedidoService.criarComItens(List.of(), null);
         ItemPedidoRequest item = new ItemPedidoRequest();
         item.setProdutoId(produtoId);
         item.setQuantidade(1);

@@ -1,5 +1,6 @@
 package br.com.infnet.pedido.controller;
 
+import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.controller.GlobalExceptionHandler;
 import br.com.infnet.pedido.factory.PedidoTestFactory;
 import br.com.infnet.pedido.domain.Pedido;
@@ -35,6 +36,9 @@ class PedidoControllerTest {
 
     @MockBean
     PedidoService service;
+
+    @MockBean
+    ProdutoServiceClient produtoServiceClient;
 
     @Test
     void listar_retornaView_comPedidos() throws Exception {
@@ -84,18 +88,21 @@ class PedidoControllerTest {
 
     @Test
     void formularioNovo_retornaFormView() throws Exception {
+        when(produtoServiceClient.listarAtivos()).thenReturn(List.of());
+
         mockMvc.perform(get("/pedidos/novo"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("pedidos/form"));
     }
 
     @Test
-    void criar_comDadosValidos_redireciona() throws Exception {
-        when(service.criar(any(), any(), any())).thenReturn(PedidoTestFactory.pedidoPendente());
+    void criar_comProdutosValidos_redireciona() throws Exception {
+        UUID produtoId = UUID.randomUUID();
+        when(service.criarComItens(any(), any())).thenReturn(PedidoTestFactory.pedidoPendente());
 
         mockMvc.perform(post("/pedidos")
-                        .param("descricao", "Meu pedido")
-                        .param("valor", "25.00")
+                        .param("produtoIds", produtoId.toString())
+                        .param("quantidades", "2")
                         .param("observacao", "Entregar pela manhã"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("/pedidos/*"));
@@ -103,42 +110,37 @@ class PedidoControllerTest {
 
     @Test
     void criar_semObservacao_redireciona() throws Exception {
-        when(service.criar(any(), any(), any())).thenReturn(PedidoTestFactory.pedidoPendente());
+        UUID produtoId = UUID.randomUUID();
+        when(service.criarComItens(any(), any())).thenReturn(PedidoTestFactory.pedidoPendente());
 
         mockMvc.perform(post("/pedidos")
-                        .param("descricao", "Pedido sem obs")
-                        .param("valor", "10.00"))
+                        .param("produtoIds", produtoId.toString())
+                        .param("quantidades", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("/pedidos/*"));
     }
 
     @Test
-    void criar_comValorInvalido_redirecionaComErro() throws Exception {
+    void criar_semItensSelecionados_redirecionaComErro() throws Exception {
+        UUID produtoId = UUID.randomUUID();
+
         mockMvc.perform(post("/pedidos")
-                        .param("descricao", "Test")
-                        .param("valor", "abc"))
+                        .param("produtoIds", produtoId.toString())
+                        .param("quantidades", "0"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/pedidos"))
                 .andExpect(flash().attributeExists("erro"));
     }
 
     @Test
-    void criar_comValorVazio_redirecionaComErro() throws Exception {
-        mockMvc.perform(post("/pedidos")
-                        .param("descricao", "Test")
-                        .param("valor", ""))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attributeExists("erro"));
-    }
-
-    @Test
     void criar_domainExceptionNoService_redirecionaComErro() throws Exception {
-        when(service.criar(any(), any(), any()))
-                .thenThrow(new DomainException("Valor inválido"));
+        UUID produtoId = UUID.randomUUID();
+        when(service.criarComItens(any(), any()))
+                .thenThrow(new DomainException("Produto inativo"));
 
         mockMvc.perform(post("/pedidos")
-                        .param("descricao", "X")
-                        .param("valor", "0.001"))
+                        .param("produtoIds", produtoId.toString())
+                        .param("quantidades", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attributeExists("erro"));
     }
@@ -165,13 +167,11 @@ class PedidoControllerTest {
     }
 
     @Test
-    void atualizar_comDadosValidos_redireciona() throws Exception {
+    void atualizar_comObservacao_redireciona() throws Exception {
         Pedido p = PedidoTestFactory.pedidoPendente();
-        when(service.atualizar(eq(p.getId()), any(), any(), any())).thenReturn(p);
+        when(service.atualizarObservacao(eq(p.getId()), any())).thenReturn(p);
 
         mockMvc.perform(post("/pedidos/" + p.getId())
-                        .param("descricao", "Novo nome")
-                        .param("valor", "20.00")
                         .param("observacao", "obs atualizada"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/pedidos"));
@@ -244,26 +244,16 @@ class PedidoControllerTest {
                 .andExpect(flash().attributeExists("erro"));
     }
 
-    @Test
-    void atualizar_comValorInvalido_redirecionaComErro() throws Exception {
-        UUID id = UUID.randomUUID();
-
-        mockMvc.perform(post("/pedidos/" + id)
-                        .param("descricao", "Teste")
-                        .param("valor", "nao-numerico"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attributeExists("erro"));
-    }
-
     // ── GlobalExceptionHandler: null-message DomainException branch ──────────
 
     @Test
     void criar_domainExceptionComMensagemNula_redirecionaComErroGenerico() throws Exception {
-        when(service.criar(any(), any(), any())).thenThrow(new DomainException(null));
+        UUID produtoId = UUID.randomUUID();
+        when(service.criarComItens(any(), any())).thenThrow(new DomainException(null));
 
         mockMvc.perform(post("/pedidos")
-                        .param("descricao", "Teste")
-                        .param("valor", "10.00"))
+                        .param("produtoIds", produtoId.toString())
+                        .param("quantidades", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attributeExists("erro"));
     }

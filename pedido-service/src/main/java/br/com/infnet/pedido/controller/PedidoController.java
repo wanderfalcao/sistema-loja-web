@@ -1,5 +1,6 @@
 package br.com.infnet.pedido.controller;
 
+import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusPedido;
 import br.com.infnet.shared.PaginacaoConstants;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Controller
@@ -40,8 +43,10 @@ public class PedidoController {
     private static final String MSG_VALOR_INVALIDO   = "Valor inválido: \"%s\". Use formato numérico (ex: 10.50).";
     private static final String MSG_ITEM_ADICIONADO  = "Item adicionado ao pedido.";
     private static final String MSG_ITEM_REMOVIDO    = "Item removido do pedido.";
+    private static final String MSG_SEM_ITENS        = "Selecione ao menos um produto com quantidade maior que zero.";
 
     private final PedidoService service;
+    private final ProdutoServiceClient produtoServiceClient;
 
     @GetMapping
     public String listar(
@@ -87,18 +92,34 @@ public class PedidoController {
 
     @GetMapping("/novo")
     public String formularioNovo(Model model) {
-        model.addAttribute("status", StatusPedido.values());
+        model.addAttribute("produtos", produtoServiceClient.listarAtivos()
+                .stream().filter(p -> p.isAtivo()).toList());
         return VIEW_FORM;
     }
 
     @PostMapping
-    public String criar(@RequestParam String descricao,
-                        @RequestParam String valor,
+    public String criar(@RequestParam(required = false) List<UUID> produtoIds,
+                        @RequestParam(required = false) List<Integer> quantidades,
                         @RequestParam(required = false) String observacao,
                         RedirectAttributes ra) {
-        Pedido pedido = service.criar(descricao, parsearValor(valor), observacao);
-        ra.addFlashAttribute(FLASH_SUCESSO, MSG_CRIADO + " Adicione os produtos abaixo.");
+        List<ItemPedidoRequest> itens = construirItens(produtoIds, quantidades);
+        if (itens.isEmpty()) {
+            ra.addFlashAttribute(FLASH_ERRO, MSG_SEM_ITENS);
+            return REDIRECT_LISTA;
+        }
+        Pedido pedido = service.criarComItens(itens, observacao);
+        ra.addFlashAttribute(FLASH_SUCESSO, MSG_CRIADO);
         return redirectDetalhe(pedido.getId());
+    }
+
+    private List<ItemPedidoRequest> construirItens(List<UUID> ids, List<Integer> qtds) {
+        if (ids == null || qtds == null) return List.of();
+        List<ItemPedidoRequest> result = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i++) {
+            int q = (i < qtds.size() && qtds.get(i) != null) ? qtds.get(i) : 0;
+            if (q > 0) result.add(new ItemPedidoRequest(ids.get(i), null, null, null, q));
+        }
+        return result;
     }
 
     @GetMapping("/{id}/editar")
@@ -110,11 +131,9 @@ public class PedidoController {
 
     @PostMapping("/{id}")
     public String atualizar(@PathVariable UUID id,
-                            @RequestParam String descricao,
-                            @RequestParam String valor,
                             @RequestParam(required = false) String observacao,
                             RedirectAttributes ra) {
-        service.atualizar(id, descricao, parsearValor(valor), observacao);
+        service.atualizarObservacao(id, observacao);
         ra.addFlashAttribute(FLASH_SUCESSO, MSG_ATUALIZADO);
         return REDIRECT_LISTA;
     }

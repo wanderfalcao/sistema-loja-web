@@ -58,7 +58,7 @@ class ProdutoServiceTest {
         Produto salvo = Produto.novo(nome.trim(), Sku.de("AUTO-XXXX"), preco);
         when(repository.save(any(Produto.class))).thenReturn(salvo);
 
-        Produto resultado = service.cadastrar(nome.trim(), preco, null, null, null, null);
+        Produto resultado = service.cadastrar(nome.trim(), preco, null, null, CategoriaProduto.GERAL, null);
 
         assertThat(resultado.getNome()).isEqualTo(nome.trim());
         assertThat(resultado.getPreco().quantia()).isEqualByComparingTo(preco);
@@ -94,7 +94,7 @@ class ProdutoServiceTest {
     @ValueSource(strings = {"-0.01", "-1.0", "-100.0", "-999.99"})
     void deveRejeitarPrecosNegativos(String precoStr) {
         BigDecimal preco = new BigDecimal(precoStr);
-        assertThatThrownBy(() -> service.cadastrar("Produto X", preco, null, null, null, null))
+        assertThatThrownBy(() -> service.cadastrar("Produto X", preco, null, null, CategoriaProduto.GERAL, null))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("Preco deve ser maior que zero");
 
@@ -221,7 +221,7 @@ class ProdutoServiceTest {
     @Test
     void deveLancarExcecaoAoCriarDTOComNomeDuplicado() {
         ProdutoRequest request = new ProdutoRequest(
-                "Monitor 4K", null, new BigDecimal("2500.00"), 10, true, null, null, null);
+                "Monitor 4K", null, new BigDecimal("2500.00"), 10, true, null, CategoriaProduto.GERAL, null);
         when(repository.existsByNomeIgnoreCase(request.getNome())).thenReturn(true);
 
         assertThatThrownBy(() -> service.criarDTO(request))
@@ -234,7 +234,7 @@ class ProdutoServiceTest {
     @Test
     void deveLancarExcecaoAoCriarDTOComSkuDuplicado() {
         ProdutoRequest request = new ProdutoRequest(
-                "Monitor 4K", null, new BigDecimal("2500.00"), 10, true, null, null, null);
+                "Monitor 4K", null, new BigDecimal("2500.00"), 10, true, null, CategoriaProduto.GERAL, null);
         when(repository.existsByNomeIgnoreCase(request.getNome())).thenReturn(false);
         when(repository.existsBySku(any())).thenReturn(true);
 
@@ -406,7 +406,7 @@ class ProdutoServiceTest {
     @Test
     void deveLancarExcecaoAoCriarDTOComProdutoAtivoSemEstoque() {
         ProdutoRequest request = new ProdutoRequest(
-                "Monitor Ativo", null, new BigDecimal("2500.00"), 0, true, null, null, null);
+                "Monitor Ativo", null, new BigDecimal("2500.00"), 0, true, null, CategoriaProduto.GERAL, null);
         when(repository.existsByNomeIgnoreCase(request.getNome())).thenReturn(false);
         when(repository.existsBySku(any())).thenReturn(false);
 

@@ -18,7 +18,7 @@
 <div th:replace="~{fragments/layout :: sidebar('pedidos')}"></div>
 
 <div class="main-wrapper">
-<div class="main" style="max-width: 640px;">
+<div class="main" style="max-width: 900px;">
 
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3">
@@ -35,7 +35,7 @@
         <div class="d-flex align-items-center gap-2 mb-4">
             <h4 class="mb-0">
                 <i th:class="${pedido != null} ? 'bi bi-pencil-square me-2' : 'bi bi-plus-circle me-2'"></i>
-                <span th:text="${pedido != null} ? 'Editar Pedido' : 'Novo Pedido'"></span>
+                <span th:text="${pedido != null} ? 'Editar Observação' : 'Novo Pedido'"></span>
             </h4>
         </div>
 
@@ -45,62 +45,152 @@
             <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
         </div>
 
-        <form th:action="${pedido != null} ? @{/pedidos/{id}(id=${pedido.id})} : @{/pedidos}"
-              method="post" novalidate>
+        <!-- ── MODO CRIAÇÃO: seleção de produtos ──────────────────────────── -->
+        <th:block th:if="${pedido == null}">
+            <form th:action="@{/pedidos}" method="post" novalidate id="formNovoPedido">
 
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <label for="descricao" class="form-label">
-                        Descrição <span class="text-danger">*</span>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">
+                        Produtos <span class="text-danger">*</span>
+                        <small class="text-muted fw-normal ms-1">— selecione a quantidade de cada produto desejado</small>
                     </label>
-                    <input type="text" id="descricao" name="descricao"
-                           class="form-control form-control-lg" maxlength="255" required
-                           placeholder="Descreva o pedido..."
-                           th:value="${pedido?.descricao}"/>
-                    <div class="form-text">Máximo 255 caracteres.</div>
-                </div>
-                <div class="col-md-6">
-                    <label for="valor" class="form-label">
-                        Valor (R$) <span class="text-danger">*</span>
-                    </label>
-                    <div class="input-group input-group-lg">
-                        <span class="input-group-text">R$</span>
-                        <input type="text" id="valor" name="valor"
-                               class="form-control" required
-                               placeholder="0,00"
-                               th:value="${pedido?.valor}"/>
+
+                    <div th:if="${#lists.isEmpty(produtos)}" class="alert alert-warning d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>Nenhum produto disponível. <a href="/produtos/novo">Cadastre um produto</a> primeiro.</span>
                     </div>
-                    <div class="form-text">Valor inicial. Após criar, adicione os produtos e o total será recalculado automaticamente.</div>
+
+                    <div th:unless="${#lists.isEmpty(produtos)}" class="table-responsive border rounded">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:80px" class="ps-3">Qtd</th>
+                                    <th>Produto</th>
+                                    <th>SKU</th>
+                                    <th class="text-end pe-3">Preço Un.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="p : ${produtos}">
+                                    <td class="ps-3">
+                                        <input type="hidden" name="produtoIds" th:value="${p.id}"/>
+                                        <input type="number"
+                                               name="quantidades"
+                                               min="0" max="99" value="0"
+                                               class="form-control form-control-sm qty-input"
+                                               th:attr="data-preco=${p.preco}, data-nome=${p.nome}"
+                                               style="width:65px"/>
+                                    </td>
+                                    <td class="fw-semibold" th:text="${p.nome}"></td>
+                                    <td class="font-monospace text-muted small" th:text="${p.sku}"></td>
+                                    <td class="text-end pe-3"
+                                        th:text="${'R$ ' + #numbers.formatDecimal(p.preco, 1, 'POINT', 2, 'COMMA')}"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Resumo auto-calculado -->
+                    <div class="d-flex align-items-start gap-4 mt-3 p-3 bg-light rounded border" id="resumo-painel">
+                        <div class="flex-grow-1">
+                            <small class="text-muted d-block mb-1">Itens selecionados</small>
+                            <span id="resumo-descricao" class="small text-secondary">Nenhum item selecionado</span>
+                        </div>
+                        <div class="text-end flex-shrink-0">
+                            <small class="text-muted d-block mb-1">Total estimado</small>
+                            <strong id="resumo-total" class="text-success fs-5">R$ 0,00</strong>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mb-4">
-                <label for="observacao" class="form-label">
-                    Observação <span class="text-muted fw-normal small">(opcional)</span>
-                </label>
-                <textarea id="observacao" name="observacao"
-                          class="form-control" rows="3" maxlength="500"
-                          placeholder="Informações adicionais, instruções especiais..."
-                          th:text="${pedido?.observacao}"></textarea>
-                <div class="form-text">Máximo 500 caracteres.</div>
-            </div>
+                <div class="mb-4">
+                    <label for="observacao" class="form-label">
+                        Observação <span class="text-muted fw-normal small">(opcional)</span>
+                    </label>
+                    <textarea id="observacao" name="observacao"
+                              class="form-control" rows="3" maxlength="500"
+                              placeholder="Informações adicionais, instruções especiais..."></textarea>
+                    <div class="form-text">Máximo 500 caracteres.</div>
+                </div>
 
-            <div class="d-flex gap-2 flex-wrap">
-                <button type="submit" class="btn-primary-custom btn">
-                    <i th:class="${pedido != null} ? 'bi bi-floppy me-1' : 'bi bi-plus-lg me-1'"></i>
-                    <span th:text="${pedido != null} ? 'Salvar Alterações' : 'Criar Pedido'"></span>
-                </button>
-                <a th:href="${pedido != null} ? @{/pedidos/{id}(id=${pedido.id})} : '/pedidos'"
-                   class="btn-secondary-custom btn">
-                    <i class="bi bi-x-lg me-1"></i>Cancelar
-                </a>
-            </div>
-        </form>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn-primary-custom btn" id="btn-criar-pedido">
+                        <i class="bi bi-plus-lg me-1"></i>Criar Pedido
+                    </button>
+                    <a href="/pedidos" class="btn-secondary-custom btn">
+                        <i class="bi bi-x-lg me-1"></i>Cancelar
+                    </a>
+                </div>
+            </form>
+        </th:block>
+
+        <!-- ── MODO EDIÇÃO: apenas observação ───────────────────────────── -->
+        <th:block th:if="${pedido != null}">
+            <form th:action="@{/pedidos/{id}(id=${pedido.id})}" method="post" novalidate>
+
+                <!-- Resumo read-only do pedido -->
+                <div class="mb-4 p-3 bg-light rounded border">
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <small class="text-muted d-block">Descrição (gerada automaticamente)</small>
+                            <span class="fw-semibold" th:text="${pedido.descricao}"></span>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <small class="text-muted d-block">Valor Total</small>
+                            <strong class="text-success"
+                                    th:text="${'R$ ' + #numbers.formatDecimal(pedido.calcularTotal(), 1, 'POINT', 2, 'COMMA')}"></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="observacao" class="form-label">
+                        Observação <span class="text-muted fw-normal small">(opcional)</span>
+                    </label>
+                    <textarea id="observacao" name="observacao"
+                              class="form-control" rows="3" maxlength="500"
+                              placeholder="Informações adicionais, instruções especiais..."
+                              th:text="${pedido.observacao}"></textarea>
+                    <div class="form-text">Máximo 500 caracteres.</div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn-primary-custom btn">
+                        <i class="bi bi-floppy me-1"></i>Salvar Observação
+                    </button>
+                    <a th:href="@{/pedidos/{id}(id=${pedido.id})}" class="btn-secondary-custom btn">
+                        <i class="bi bi-x-lg me-1"></i>Cancelar
+                    </a>
+                </div>
+            </form>
+        </th:block>
     </div>
 </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>function toggleSidebar(){document.querySelector('.sidebar').classList.toggle('open');}</script>
+<script>
+    document.querySelectorAll('.qty-input').forEach(function(inp) {
+        inp.addEventListener('input', atualizarResumo);
+    });
+
+    function atualizarResumo() {
+        var total = 0;
+        var partes = [];
+        document.querySelectorAll('.qty-input').forEach(function(inp) {
+            var qty = parseInt(inp.value) || 0;
+            if (qty > 0) {
+                var preco = parseFloat(inp.dataset.preco) || 0;
+                total += qty * preco;
+                partes.push(qty + 'x ' + inp.dataset.nome);
+            }
+        });
+        var totalFmt = 'R$ ' + total.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+,)/g, '$1.');
+        document.getElementById('resumo-total').textContent = totalFmt;
+        document.getElementById('resumo-descricao').textContent =
+            partes.length ? partes.join(', ') : 'Nenhum item selecionado';
+    }
+</script>
 </body>
 </html>

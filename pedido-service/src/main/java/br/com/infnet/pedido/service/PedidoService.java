@@ -73,12 +73,8 @@ public class PedidoService implements CrudService<Pedido, UUID> {
 
     @Transactional
     public PedidoResponse atualizarDTO(UUID id, PedidoRequest request) {
-        validador.validarDescricao(request.getDescricao());
-        validador.validarValor(request.getValor());
         Pedido pedido = buscar(id);
-        pedido.atualizar(
-            request.getDescricao().trim(),
-            Dinheiro.de(request.getValor()),
+        pedido.atualizarObservacao(
             request.getObservacao() != null ? request.getObservacao().trim() : null
         );
         return mapper.toResponse(repository.save(pedido));
@@ -143,28 +139,31 @@ public class PedidoService implements CrudService<Pedido, UUID> {
         return historicoRegistrador.buscarHistorico(pedidoId);
     }
 
+    /**
+     * Cria um pedido a partir de uma lista de itens selecionados na UI.
+     * Descrição e valor total são gerados automaticamente pelo domínio.
+     */
     @Transactional
-    public Pedido criar(String descricao, BigDecimal valor) {
-        return criar(descricao, valor, null);
+    public Pedido criarComItens(List<ItemPedidoRequest> itens, String observacao) {
+        Pedido pedido = Pedido.novoVazio(observacao);
+        repository.save(pedido);
+        for (ItemPedidoRequest req : itens) {
+            enriquecerComDadosDoProduto(req);
+            if (req.getNomeProduto() == null || req.getNomeProduto().isBlank()) continue;
+            pedido.getItens().add(ItemPedidoFactory.criar(pedido, req));
+        }
+        pedido.sincronizarTotalEDescricao();
+        return repository.save(pedido);
     }
 
+    /**
+     * Atualiza apenas a observação do pedido.
+     * Descrição e valor são gerenciados internamente conforme os itens.
+     */
     @Transactional
-    public Pedido criar(String descricao, BigDecimal valor, String observacao) {
-        validador.validarDescricao(descricao);
-        validador.validarValor(valor);
-        return repository.save(PedidoFactory.criar(descricao, valor, observacao));
-    }
-
-    @Transactional
-    public Pedido atualizar(UUID id, String descricao, BigDecimal valor, String observacao) {
-        validador.validarDescricao(descricao);
-        validador.validarValor(valor);
+    public Pedido atualizarObservacao(UUID id, String observacao) {
         Pedido pedido = buscar(id);
-        pedido.atualizar(
-            descricao.trim(),
-            Dinheiro.de(valor),
-            observacao != null ? observacao.trim() : null
-        );
+        pedido.atualizarObservacao(observacao != null ? observacao.trim() : null);
         return repository.save(pedido);
     }
 
@@ -229,6 +228,7 @@ public class PedidoService implements CrudService<Pedido, UUID> {
 
         ItemPedido item = ItemPedidoFactory.criar(pedido, request);
         pedido.getItens().add(item);
+        pedido.sincronizarTotalEDescricao();
         return mapper.toResponse(repository.save(pedido));
     }
 
@@ -238,6 +238,7 @@ public class PedidoService implements CrudService<Pedido, UUID> {
         if (pedido.getStatus() != StatusPedido.PENDENTE)
             throw new DomainException("Itens só podem ser removidos de pedidos PENDENTE.");
         pedido.getItens().removeIf(i -> i.getId().equals(itemId));
+        pedido.sincronizarTotalEDescricao();
         return mapper.toResponse(repository.save(pedido));
     }
 

@@ -99,8 +99,8 @@
                         <select name="sort" class="ctrl-select" onchange="this.form.submit()">
                             <option value="dataCriacao,desc" th:selected="${sortField == 'dataCriacao' and sortDir == 'desc'}">Mais recente</option>
                             <option value="dataCriacao,asc"  th:selected="${sortField == 'dataCriacao' and sortDir == 'asc'}">Mais antigo</option>
-                            <option value="valor,desc"       th:selected="${sortField == 'valor'       and sortDir == 'desc'}">Maior valor</option>
-                            <option value="valor,asc"        th:selected="${sortField == 'valor'       and sortDir == 'asc'}">Menor valor</option>
+                            <option value="valor.quantia,desc" th:selected="${sortField == 'valor.quantia' and sortDir == 'desc'}">Maior valor</option>
+                            <option value="valor.quantia,asc"  th:selected="${sortField == 'valor.quantia' and sortDir == 'asc'}">Menor valor</option>
                             <option value="status,asc"       th:selected="${sortField == 'status'      and sortDir == 'asc'}">Status A→Z</option>
                             <option value="status,desc"      th:selected="${sortField == 'status'      and sortDir == 'desc'}">Status Z→A</option>
                             <option value="descricao,asc"    th:selected="${sortField == 'descricao'   and sortDir == 'asc'}">Descrição A→Z</option>
@@ -164,7 +164,7 @@
 
                 <td class="date-cell" th:text="${#temporals.format(pedido.dataCriacao,'dd/MM/yy HH:mm')}"></td>
                 <td class="date-cell"
-                    th:text="${pedido.dataAtualizacao != null} ? ${#temporals.format(pedido.dataAtualizacao,'dd/MM/yy HH:mm')} : '—'"></td>
+                    th:text="${pedido.dataAtualizacao != null ? #temporals.format(pedido.dataAtualizacao,'dd/MM/yy HH:mm') : '—'}"></td>
 
                 <td>
                     <div class="ag">

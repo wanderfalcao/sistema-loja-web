@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "pedidos", indexes = {
@@ -61,15 +62,29 @@ public class Pedido {
         if (id == null) id = java.util.UUID.randomUUID();
     }
 
-    // ── Factory method ───────────────────────────────────────────────────────
+    // ── Factory methods ──────────────────────────────────────────────────────
 
     public static Pedido novo(String descricao, BigDecimal valor, String observacao) {
         Pedido p = new Pedido();
-        p.id        = UUID.randomUUID();
-        p.descricao = descricao;
-        p.valor     = Dinheiro.de(valor);
+        p.id         = UUID.randomUUID();
+        p.descricao  = descricao;
+        p.valor      = Dinheiro.de(valor);
         p.observacao = observacao;
-        p.status    = StatusPedido.PENDENTE;
+        p.status     = StatusPedido.PENDENTE;
+        return p;
+    }
+
+    /**
+     * Cria um pedido sem valor ou descrição manual.
+     * Total e descrição são gerenciados internamente conforme itens são adicionados.
+     */
+    public static Pedido novoVazio(String observacao) {
+        Pedido p = new Pedido();
+        p.id         = UUID.randomUUID();
+        p.descricao  = "Pedido sem itens";
+        p.valor      = Dinheiro.de(BigDecimal.ZERO);
+        p.observacao = observacao;
+        p.status     = StatusPedido.PENDENTE;
         return p;
     }
 
@@ -81,11 +96,32 @@ public class Pedido {
         this.dataAtualizacao = java.time.LocalDateTime.now();
     }
 
-    /** Atualiza os dados editáveis do pedido atomicamente. */
-    public void atualizar(String descricao, Dinheiro valor, String observacao) {
-        this.descricao       = descricao;
-        this.valor           = valor;
+    /** Atualiza apenas a observação. Descrição e valor são gerenciados internamente. */
+    public void atualizarObservacao(String observacao) {
         this.observacao      = observacao;
+        this.dataAtualizacao = LocalDateTime.now();
+    }
+
+    /**
+     * Sincroniza descrição e valor total a partir da lista de itens atual.
+     * Chamado pelo service após qualquer alteração nos itens.
+     */
+    public void sincronizarTotalEDescricao() {
+        if (itens == null || itens.isEmpty()) {
+            this.valor     = Dinheiro.de(BigDecimal.ZERO);
+            this.descricao = "Pedido sem itens";
+        } else {
+            BigDecimal total = itens.stream()
+                    .map(i -> i.getSubtotal().quantia())
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            this.valor = Dinheiro.de(total);
+            String desc = itens.stream()
+                    .map(i -> i.getQuantidade().inteiro() + "x " + i.getNomeProduto())
+                    .collect(Collectors.joining(", "));
+            this.descricao = desc.length() > MAX_DESCRICAO
+                    ? desc.substring(0, MAX_DESCRICAO - 3) + "..."
+                    : desc;
+        }
         this.dataAtualizacao = LocalDateTime.now();
     }
 

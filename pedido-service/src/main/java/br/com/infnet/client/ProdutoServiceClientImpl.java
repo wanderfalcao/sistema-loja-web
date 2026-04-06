@@ -1,13 +1,19 @@
 package br.com.infnet.client;
 
 import br.com.infnet.shared.exception.DomainException;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -37,6 +43,18 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
     }
 
     @Override
+    public List<ProdutoInfo> listarAtivos() {
+        String url = produtoServiceUrl + "/api/v1/produtos?size=200&sort=nome";
+        try {
+            ProdutoPageResponse page = restTemplate.getForObject(url, ProdutoPageResponse.class);
+            return page != null ? page.getContent() : List.of();
+        } catch (Exception e) {
+            log.warn("Falha ao listar produtos-service: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    @Override
     public void ajustarEstoque(UUID id, TipoOperacaoEstoque operacao, int quantidade) {
         String url = produtoServiceUrl + PRODUTOS_PATH + id + "/estoque";
         EstoqueAjusteRequest request = new EstoqueAjusteRequest(operacao, quantidade);
@@ -49,5 +67,13 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
             log.warn("Falha ao contactar produto-service para ajuste de estoque: {}", e.getMessage());
             throw new DomainException(MSG_SERVICO_INDISPONIVEL);
         }
+    }
+
+    /** DTO interno para deserializar a resposta paginada de /api/v1/produtos. */
+    @Getter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class ProdutoPageResponse {
+        private List<ProdutoInfo> content = List.of();
     }
 }

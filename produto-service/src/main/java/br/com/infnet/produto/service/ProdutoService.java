@@ -34,6 +34,8 @@ public class ProdutoService implements CrudService<Produto, UUID> {
     public Produto cadastrar(String nome, BigDecimal preco,
                               String descricao, Integer estoque,
                               CategoriaProduto categoria, String imagemUrl) {
+        if (categoria == null)
+            throw new DomainException("Categoria é obrigatória para cadastrar um produto.");
         Produto p = ProdutoFactory.criar(nome, preco, categoria);
         if (descricao != null && !descricao.isBlank()) p.definirDescricao(descricao);
         if (estoque != null && estoque > 0)            p.definirEstoque(Quantidade.de(estoque));
@@ -76,6 +78,8 @@ public class ProdutoService implements CrudService<Produto, UUID> {
     }
 
     public ProdutoResponse criarDTO(ProdutoRequest request) {
+        if (request.getCategoria() == null)
+            throw new DomainException("Categoria é obrigatória para cadastrar um produto.");
         if (repository.existsByNomeIgnoreCase(request.getNome()))
             throw new DomainException("Produto com este nome já existe: " + request.getNome());
 
