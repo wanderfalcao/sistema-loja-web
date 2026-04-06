@@ -1,10 +1,8 @@
 package br.com.infnet.pedido.domain;
 
-import br.com.infnet.shared.exception.DomainException;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -21,7 +19,6 @@ import java.util.UUID;
         @Index(name = "idx_pedido_data_criacao", columnList = "data_criacao")
 })
 @Getter
-@Setter
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 public class Pedido {
@@ -37,8 +34,9 @@ public class Pedido {
     @Column(nullable = false, length = MAX_DESCRICAO)
     private String descricao;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal valor;
+    @Embedded
+    @AttributeOverride(name = "quantia", column = @Column(name = "valor", precision = 10, scale = 2, nullable = false))
+    private Dinheiro valor;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -63,33 +61,47 @@ public class Pedido {
         if (id == null) id = java.util.UUID.randomUUID();
     }
 
-    // ── Fábrica ───────────────────────────────────────────────────────────────
+    // ── Factory method ───────────────────────────────────────────────────────
 
     public static Pedido novo(String descricao, BigDecimal valor, String observacao) {
         Pedido p = new Pedido();
-        p.id = UUID.randomUUID();
+        p.id        = UUID.randomUUID();
         p.descricao = descricao;
-        p.valor = valor;
+        p.valor     = Dinheiro.de(valor);
         p.observacao = observacao;
-        p.status = StatusPedido.PENDENTE;
+        p.status    = StatusPedido.PENDENTE;
         return p;
     }
 
-    // ── Comandos de domínio ───────────────────────────────────────────────────
+    // ── Behavior methods (command) ───────────────────────────────────────────
 
+    /** Avança o status do pedido (chamado pela máquina de estados). */
     public void avancarStatus(StatusPedido novoStatus) {
         this.status = novoStatus;
         this.dataAtualizacao = java.time.LocalDateTime.now();
     }
 
-    /**
-     * Retorna a soma dos subtotais dos itens; ou o valor manual se a lista estiver vazia.
-     * Garante imutabilidade do total mesmo que o produto original mude depois.
-     */
+    /** Atualiza os dados editáveis do pedido atomicamente. */
+    public void atualizar(String descricao, Dinheiro valor, String observacao) {
+        this.descricao       = descricao;
+        this.valor           = valor;
+        this.observacao      = observacao;
+        this.dataAtualizacao = LocalDateTime.now();
+    }
+
+    /** Marca o pedido como contestado com o motivo registrado. */
+    public void contestar(String motivo) {
+        this.status          = StatusPedido.CONTESTADO;
+        this.observacao      = motivo;
+        this.dataAtualizacao = LocalDateTime.now();
+    }
+
+    // ── Query methods ────────────────────────────────────────────────────────
+
     public BigDecimal calcularTotal() {
-        if (itens == null || itens.isEmpty()) return valor;
+        if (itens == null || itens.isEmpty()) return valor.quantia();
         return itens.stream()
-                .map(ItemPedido::getSubtotal)
+                .map(i -> i.getSubtotal().quantia())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

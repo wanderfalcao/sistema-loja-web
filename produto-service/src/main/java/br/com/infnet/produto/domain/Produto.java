@@ -20,20 +20,18 @@ import java.util.UUID;
         @Index(name = "idx_produto_nome", columnList = "nome")
 })
 @Getter
-@Setter
-@NoArgsConstructor               // exigido pelo JPA e pelo MapStruct
+@NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 public class Produto {
 
     public static final int MAX_NOME      = 255;
     public static final int MAX_DESCRICAO = 1000;
     public static final int MAX_SKU       = 50;
-    public static final BigDecimal PRECO_MINIMO = BigDecimal.ZERO;
 
     private static final String ERR_PRECO_INVALIDO = "Preco deve ser maior que zero";
 
     @Id
-    @Setter(AccessLevel.NONE)
+    @Column(nullable = false, updatable = false)
     private UUID id;
 
     @Column(nullable = false, length = MAX_NOME, unique = true)
@@ -43,23 +41,29 @@ public class Produto {
     private String descricao;
 
     @Column(nullable = false, unique = true, length = MAX_SKU)
-    private String sku;
+    @Convert(converter = SkuConverter.class)
+    private Sku sku;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal preco;
+    @Embedded
+    @AttributeOverride(name = "quantia", column = @Column(name = "preco", precision = 10, scale = 2, nullable = false))
+    private Dinheiro preco;
 
     @Column(length = 500)
     private String imagemUrl;
 
     @Embedded
-    @Setter(AccessLevel.NONE)                        // gerenciado via ativarPromocao/encerrarPromocao
+    @Setter(AccessLevel.NONE)
     private Promocao promocao;
 
-    @Column(nullable = false)
-    private Integer estoque = 0;
+    @Embedded
+    @AttributeOverride(name = "inteiro", column = @Column(name = "estoque", nullable = false))
+    private Quantidade estoque;
 
-    @Column(nullable = false)
-    private Integer estoqueMinimo = 0;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "inteiro", column = @Column(name = "estoque_minimo", nullable = false))
+    })
+    private Quantidade estoqueMinimo;
 
     @Column(nullable = false)
     private Boolean ativo = true;
@@ -70,41 +74,42 @@ public class Produto {
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    @Setter(AccessLevel.NONE)                        // gerenciado pelo JPA Auditing
     private LocalDateTime dataCriacao;
 
     @LastModifiedDate
     @Column
-    @Setter(AccessLevel.NONE)
     private LocalDateTime dataAtualizacao;
 
-    /** Único ponto de criação: aplica todas as invariantes de domínio. */
-    public static Produto novo(String nome, String sku, BigDecimal preco) {
+    // ── Factory methods ──────────────────────────────────────────────────────
+
+    public static Produto novo(String nome, Sku sku, BigDecimal preco) {
         if (nome == null || nome.trim().isEmpty()) throw new DomainException("Nome obrigatorio");
-        if (sku == null || sku.trim().isEmpty())   throw new DomainException("SKU obrigatorio");
-        if (preco == null || preco.compareTo(PRECO_MINIMO) <= 0) throw new DomainException(ERR_PRECO_INVALIDO);
+        if (sku == null)                           throw new DomainException("SKU obrigatorio");
+        if (preco == null || preco.compareTo(BigDecimal.ZERO) <= 0) throw new DomainException(ERR_PRECO_INVALIDO);
         Produto p = new Produto();
-        p.id           = UUID.randomUUID();
-        p.nome         = nome.trim();
-        p.sku          = sku.trim();
-        p.preco        = preco;
-        p.estoque      = 0;
-        p.estoqueMinimo = 0;
-        p.ativo        = true;
+        p.id            = UUID.randomUUID();
+        p.nome          = nome.trim();
+        p.sku           = sku;
+        p.preco         = Dinheiro.dePositivo(preco);
+        p.estoque       = Quantidade.de(0);
+        p.estoqueMinimo = Quantidade.de(0);
+        p.ativo         = true;
         return p;
     }
 
-    public void atualizar(String nome, String sku, BigDecimal preco) {
+    // ── Behavior methods (command) ───────────────────────────────────────────
+
+    public void atualizar(String nome, Sku sku, BigDecimal preco) {
         if (nome == null || nome.trim().isEmpty()) throw new DomainException("Nome obrigatorio");
-        if (sku == null || sku.trim().isEmpty())   throw new DomainException("SKU obrigatorio");
-        if (preco == null || preco.compareTo(PRECO_MINIMO) <= 0) throw new DomainException(ERR_PRECO_INVALIDO);
+        if (sku == null)                           throw new DomainException("SKU obrigatorio");
+        if (preco == null || preco.compareTo(BigDecimal.ZERO) <= 0) throw new DomainException(ERR_PRECO_INVALIDO);
         this.nome  = nome.trim();
-        this.sku   = sku.trim();
-        this.preco = preco;
+        this.sku   = sku;
+        this.preco = Dinheiro.dePositivo(preco);
     }
 
     public void ativar() {
-        if (estoque <= estoqueMinimo)
+        if (!estoque.maiorQue(estoqueMinimo))
             throw new DomainException("Produto sem estoque suficiente nao pode ser ativado");
         this.ativo = true;
     }
@@ -113,17 +118,61 @@ public class Produto {
         this.ativo = false;
     }
 
+    /** Ajusta o estoque usando polimorfismo total de {@link TipoOperacaoEstoque}. */
+    public void ajustarEstoque(TipoOperacaoEstoque operacao, Quantidade quantidade) {
+        operacao.validarAntesDeAplicar(Boolean.TRUE.equals(this.ativo));
+        this.estoque = operacao.aplicar(this.estoque, quantidade);
+        sincronizarStatusComEstoque();
+    }
+
+    private void sincronizarStatusComEstoque() {
+        if (!this.estoque.maiorQue(this.estoqueMinimo) && Boolean.TRUE.equals(this.ativo))
+            this.ativo = false;
+        else if (this.estoque.maiorQue(this.estoqueMinimo) && Boolean.FALSE.equals(this.ativo))
+            this.ativo = true;
+    }
+
     public void ativarPromocao(BigDecimal percentual, LocalDateTime inicio, LocalDateTime fim) {
         if (!Boolean.TRUE.equals(this.ativo))
             throw new DomainException("Produto inativo nao pode ter promocao ativada");
-        this.promocao = Promocao.criar(percentual, inicio, fim, this.preco);
+        if (this.categoria != null && percentual.compareTo(this.categoria.descontoMaximoPermitido()) > 0)
+            throw new DomainException("Desconto máximo para " + this.categoria.getLabel()
+                + " é " + this.categoria.descontoMaximoPermitido() + "%");
+        this.promocao = Promocao.criar(percentual, inicio, fim, this.preco.quantia());
     }
 
     public void encerrarPromocao() {
         this.promocao = null;
     }
 
-    /** Preço com desconto quando há promoção ativa, ou {@code null}. */
+    // ── Definition methods (initialization-time setters with semantic names) ─
+
+    public void definirDescricao(String descricao) {
+        this.descricao = descricao;
+    }
+
+    public void definirEstoque(Quantidade estoque) {
+        this.estoque = estoque;
+    }
+
+    public void definirEstoqueMinimo(Quantidade estoqueMinimo) {
+        this.estoqueMinimo = estoqueMinimo;
+    }
+
+    public void definirImagemUrl(String imagemUrl) {
+        this.imagemUrl = imagemUrl;
+    }
+
+    public void definirCategoria(CategoriaProduto categoria) {
+        this.categoria = categoria;
+    }
+
+    public void alterarAtivo(Boolean ativo) {
+        if (ativo != null) this.ativo = ativo;
+    }
+
+    // ── Query methods ────────────────────────────────────────────────────────
+
     public BigDecimal getPrecoPromocional() {
         return promocao != null ? promocao.getPrecoComDesconto() : null;
     }

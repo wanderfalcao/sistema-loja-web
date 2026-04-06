@@ -25,17 +25,8 @@ public class Promocao {
     @Column(name = "promo_fim")
     private LocalDateTime fim;
 
-    /** Construtor sem argumentos exigido pelo JPA. */
     public Promocao() {}
 
-    /**
-     * Factory com validação embutida. Calcula {@code precoComDesconto} automaticamente.
-     *
-     * @param percentual percentual de desconto (exclusivo: 0 &lt; x &lt; 100)
-     * @param inicio     início da promoção (pode ser nulo)
-     * @param fim        fim da promoção (deve ser posterior ao início quando ambos informados)
-     * @param precoBase  preço original do produto
-     */
     public static Promocao criar(BigDecimal percentual, LocalDateTime inicio,
                                   LocalDateTime fim, BigDecimal precoBase) {
         if (percentual == null
@@ -45,6 +36,9 @@ public class Promocao {
         }
         if (fim != null && inicio != null && !fim.isAfter(inicio)) {
             throw new DomainException("Data de fim da promocao deve ser posterior ao inicio");
+        }
+        if (fim != null && inicio != null && fim.isBefore(inicio.plusHours(1))) {
+            throw new DomainException("Promoção deve durar no mínimo 1 hora");
         }
 
         Promocao p = new Promocao();
