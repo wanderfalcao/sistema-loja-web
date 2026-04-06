@@ -61,6 +61,21 @@ jobs:
       contents: read
       security-events: write
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: produto_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -76,9 +91,15 @@ jobs:
           echo "::debug::Compilando aplicação para análise DAST"
           mvn package -pl produto-service -DskipTests -B -q
           java -Dspring.profiles.active=test \
+               -DSPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/produto_db \
+               -DSPRING_DATASOURCE_DRIVER=org.postgresql.Driver \
+               -DSPRING_DATASOURCE_USERNAME=postgres \
+               -DSPRING_DATASOURCE_PASSWORD=postgres \
+               -Dspring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect \
+               -Dspring.jpa.hibernate.ddl-auto=create-drop \
                -jar produto-service/target/*.jar &
           echo "::debug::Aguardando startup da aplicação..."
-          timeout 60 bash -c \
+          timeout 90 bash -c \
             'until curl -sf http://localhost:8081/actuator/health; do sleep 3; done'
           echo "::notice title=DAST::Aplicação disponível em http://localhost:8081"
 
