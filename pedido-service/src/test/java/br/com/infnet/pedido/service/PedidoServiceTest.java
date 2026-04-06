@@ -2,32 +2,32 @@ package br.com.infnet.pedido.service;
 
 import br.com.infnet.client.ProdutoInfo;
 import br.com.infnet.client.TipoOperacaoEstoque;
-import br.com.infnet.pedido.dto.ItemPedidoRequest;
-import br.com.infnet.pedido.dto.PedidoResponse;
-import br.com.infnet.pedido.factory.PedidoTestFactory;
+import br.com.infnet.pedido.domain.Dinheiro;
 import br.com.infnet.pedido.domain.Pedido;
 import br.com.infnet.pedido.domain.StatusHistorico;
 import br.com.infnet.pedido.domain.StatusPedido;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-
-import java.util.Map;
 import br.com.infnet.pedido.domain.exception.PedidoNaoEncontradoException;
+import br.com.infnet.pedido.dto.ItemPedidoRequest;
+import br.com.infnet.pedido.dto.PedidoResponse;
+import br.com.infnet.pedido.factory.PedidoTestFactory;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
-import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.shared.exception.DomainException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,7 +50,16 @@ class PedidoServiceTest {
     ProdutoServiceClient produtoServiceClient;
 
     @Mock
-    StatusHistoricoRepository statusHistoricoRepository;
+    EstoqueOrquestrador estoqueOrquestrador;
+
+    @Mock
+    StatusHistoricoRegistrador historicoRegistrador;
+
+    @Spy
+    PedidoValidador validador;
+
+    @Spy
+    PedidoStatusMachine statusMachine;
 
     @InjectMocks
     PedidoService service;
@@ -61,8 +70,7 @@ class PedidoServiceTest {
     @BeforeEach
     void setUp() {
         pedidoPendente = PedidoTestFactory.pedidoPendente();
-        pedidoPendente.setDescricao("Pedido Teste");
-        pedidoPendente.setValor(new BigDecimal("50.00"));
+        pedidoPendente.atualizar("Pedido Teste", Dinheiro.de(new BigDecimal("50.00")), null);
         id = pedidoPendente.getId();
     }
 
@@ -127,7 +135,7 @@ class PedidoServiceTest {
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         Pedido atualizado = service.atualizar(id, "Nova desc", new BigDecimal("99.99"), null);
         assertThat(atualizado.getDescricao()).isEqualTo("Nova desc");
-        assertThat(atualizado.getValor()).isEqualByComparingTo("99.99");
+        assertThat(atualizado.getValor().quantia()).isEqualByComparingTo("99.99");
     }
 
     @Test
@@ -139,10 +147,6 @@ class PedidoServiceTest {
 
     @Test
     void avancarStatus_pendenteParaProcessando() {
-        // Add item so transition PENDENTE → PROCESSANDO is valid (requires at least one item)
-        // We directly set status to PROCESSANDO to test the transition skipping item check
-        // Since the service checks itens.isEmpty(), we test without items that it throws
-        // Instead test PROCESSANDO → CONCLUIDO which doesn't need items
         Pedido processando = PedidoTestFactory.pedidoCom(StatusPedido.PROCESSANDO);
         UUID id2 = processando.getId();
         when(repository.findById(id2)).thenReturn(Optional.of(processando));
@@ -171,7 +175,7 @@ class PedidoServiceTest {
 
     @Test
     void avancarStatus_cancelar_deProcessando() {
-        pedidoPendente.setStatus(StatusPedido.PROCESSANDO);
+        pedidoPendente.avancarStatus(StatusPedido.PROCESSANDO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         Pedido p = service.avancarStatus(id, StatusPedido.CANCELADO);
@@ -180,7 +184,7 @@ class PedidoServiceTest {
 
     @Test
     void avancarStatus_concluido_naoPodeCancelarDiretamente_lancaDomainException() {
-        pedidoPendente.setStatus(StatusPedido.CONCLUIDO);
+        pedidoPendente.avancarStatus(StatusPedido.CONCLUIDO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         assertThatThrownBy(() -> service.avancarStatus(id, StatusPedido.CANCELADO))
                 .isInstanceOf(DomainException.class)
@@ -189,7 +193,7 @@ class PedidoServiceTest {
 
     @Test
     void avancarStatus_concluido_podeContestar() {
-        pedidoPendente.setStatus(StatusPedido.CONCLUIDO);
+        pedidoPendente.avancarStatus(StatusPedido.CONCLUIDO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         Pedido p = service.avancarStatus(id, StatusPedido.CONTESTADO);
@@ -198,7 +202,7 @@ class PedidoServiceTest {
 
     @Test
     void avancarStatus_contestado_podeReprocessar() {
-        pedidoPendente.setStatus(StatusPedido.CONTESTADO);
+        pedidoPendente.avancarStatus(StatusPedido.CONTESTADO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         Pedido p = service.avancarStatus(id, StatusPedido.PROCESSANDO);
@@ -207,7 +211,7 @@ class PedidoServiceTest {
 
     @Test
     void avancarStatus_cancelado_ehEstadoTerminal_lancaDomainException() {
-        pedidoPendente.setStatus(StatusPedido.CANCELADO);
+        pedidoPendente.avancarStatus(StatusPedido.CANCELADO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         assertThatThrownBy(() -> service.avancarStatus(id, StatusPedido.PROCESSANDO))
                 .isInstanceOf(DomainException.class)
@@ -216,7 +220,7 @@ class PedidoServiceTest {
 
     @Test
     void contestar_salvaPedidoComoContestado_comMotivo() {
-        pedidoPendente.setStatus(StatusPedido.CONCLUIDO);
+        pedidoPendente.avancarStatus(StatusPedido.CONCLUIDO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         Pedido p = service.contestar(id, "Produto com defeito");
@@ -316,7 +320,7 @@ class PedidoServiceTest {
 
     @Test
     void adicionarItem_deveRejeitarItemEmPedidoNaoPendente() {
-        pedidoPendente.setStatus(StatusPedido.PROCESSANDO);
+        pedidoPendente.avancarStatus(StatusPedido.PROCESSANDO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
 
         ItemPedidoRequest request = new ItemPedidoRequest(null, "Mouse", null,
@@ -346,7 +350,7 @@ class PedidoServiceTest {
 
     @Test
     void removerItem_deveRejeitarRemocaoEmPedidoNaoPendente() {
-        pedidoPendente.setStatus(StatusPedido.PROCESSANDO);
+        pedidoPendente.avancarStatus(StatusPedido.PROCESSANDO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
 
         assertThatThrownBy(() -> service.removerItem(id, UUID.randomUUID()))
@@ -355,9 +359,28 @@ class PedidoServiceTest {
         verify(repository, never()).save(any());
     }
 
-    private ProdutoInfo produtoInfoAtivo(UUID id, String nome, String sku, BigDecimal preco) {
+    @Test
+    void adicionarItem_deveRejeitarQuandoPedidoJaTem20Itens() {
+        ItemPedidoRequest req = new ItemPedidoRequest(null, "Prod X", null, new BigDecimal("10.00"), 1);
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(mapper.toResponse(any())).thenReturn(null);
+
+        for (int i = 0; i < 20; i++) {
+            ItemPedidoRequest r = new ItemPedidoRequest(null, "Prod " + i, null, new BigDecimal("10.00"), 1);
+            service.adicionarItem(id, r);
+        }
+
+        when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
+        assertThatThrownBy(() -> service.adicionarItem(id, req))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("20 itens");
+        verify(repository, never()).save(argThat(p -> ((Pedido) p).getItens().size() > 20));
+    }
+
+    private ProdutoInfo produtoInfoAtivo(UUID produtoId, String nome, String sku, BigDecimal preco) {
         ProdutoInfo info = new ProdutoInfo();
-        info.setId(id);
+        info.setId(produtoId);
         info.setNome(nome);
         info.setSku(sku);
         info.setPreco(preco);
@@ -376,14 +399,13 @@ class PedidoServiceTest {
                 new BigDecimal("1500.00"), 2);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(statusHistoricoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(mapper.toResponse(any())).thenReturn(null);
         service.adicionarItem(id, req);
 
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         service.avancarStatus(id, StatusPedido.PROCESSANDO);
 
-        verify(produtoServiceClient).ajustarEstoque(eq(produtoId), eq(TipoOperacaoEstoque.SAIDA), eq(2));
+        verify(estoqueOrquestrador).aplicarOperacaoEstoque(eq(pedidoPendente), eq(TipoOperacaoEstoque.SAIDA));
     }
 
     @Test
@@ -396,27 +418,26 @@ class PedidoServiceTest {
                 new BigDecimal("300.00"), 1);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(statusHistoricoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(mapper.toResponse(any())).thenReturn(null);
         service.adicionarItem(id, req);
 
         // Advance to PROCESSANDO first
-        pedidoPendente.setStatus(StatusPedido.PROCESSANDO);
+        pedidoPendente.avancarStatus(StatusPedido.PROCESSANDO);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         service.avancarStatus(id, StatusPedido.CANCELADO);
 
-        verify(produtoServiceClient).ajustarEstoque(eq(produtoId), eq(TipoOperacaoEstoque.ENTRADA), eq(1));
+        verify(estoqueOrquestrador).aplicarOperacaoEstoque(any(Pedido.class), eq(TipoOperacaoEstoque.ENTRADA));
     }
 
     @Test
     void buscarHistorico_retornaListaOrdenada() {
         StatusHistorico h = new StatusHistorico(pedidoPendente, StatusPedido.PENDENTE, StatusPedido.PROCESSANDO, null);
-        when(statusHistoricoRepository.findAllByPedidoIdOrderByDataTransicaoAsc(id)).thenReturn(List.of(h));
+        when(historicoRegistrador.buscarHistorico(id)).thenReturn(List.of(h));
 
         List<StatusHistorico> historico = service.buscarHistorico(id);
 
         assertThat(historico).hasSize(1);
-        verify(statusHistoricoRepository).findAllByPedidoIdOrderByDataTransicaoAsc(id);
+        verify(historicoRegistrador).buscarHistorico(id);
     }
 
     @Test
@@ -448,13 +469,13 @@ class PedidoServiceTest {
     @Test
     void listarPaginadoComFiltros_comBuscaEStatus_delegaParaRepositorio() {
         Page<Pedido> page = new PageImpl<>(List.of(pedidoPendente));
-        when(repository.filtrar(any(), any(), any())).thenReturn(page);
+        when(repository.filtrarComDescricao(any(), any(), any())).thenReturn(page);
 
         Page<Pedido> resultado = service.listarPaginadoComFiltros(
                 StatusPedido.PENDENTE, "Monitor", PageRequest.of(0, 10));
 
         assertThat(resultado.getContent()).hasSize(1);
-        verify(repository).filtrar(eq(StatusPedido.PENDENTE), eq("Monitor"), any());
+        verify(repository).filtrarComDescricao(eq(StatusPedido.PENDENTE), eq("monitor"), any());
     }
 
     @Test
@@ -487,7 +508,6 @@ class PedidoServiceTest {
                 new BigDecimal("50.00"), 1);
         when(repository.findById(id)).thenReturn(Optional.of(pedidoPendente));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(statusHistoricoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(mapper.toResponse(any())).thenReturn(null);
         service.adicionarItem(id, req);
 

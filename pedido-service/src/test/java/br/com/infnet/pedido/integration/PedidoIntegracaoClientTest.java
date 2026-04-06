@@ -12,6 +12,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>A porta 9999 corresponde ao {@code produto.service.url=http://localhost:9999}
  * definido em {@code application-test.properties}.
  */
+@Tag("integration")
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("Integração pedido-service → produto-service (WireMock)")

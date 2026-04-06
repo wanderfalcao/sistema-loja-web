@@ -10,13 +10,13 @@ import br.com.infnet.pedido.factory.PedidoTestFactory;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
-import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.shared.exception.DomainException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -45,7 +45,16 @@ class PedidoServiceDTOTest {
     ProdutoServiceClient produtoServiceClient;
 
     @Mock
-    StatusHistoricoRepository statusHistoricoRepository;
+    EstoqueOrquestrador estoqueOrquestrador;
+
+    @Mock
+    StatusHistoricoRegistrador historicoRegistrador;
+
+    @Spy
+    PedidoValidador validador;
+
+    @Spy
+    PedidoStatusMachine statusMachine;
 
     @InjectMocks
     PedidoService service;
@@ -58,9 +67,10 @@ class PedidoServiceDTOTest {
     void setUp() {
         pedido = PedidoTestFactory.pedidoPendente();
         id = pedido.getId();
-        responseDTO = new PedidoResponse(id, "Test", new BigDecimal("10.00"),
-                StatusPedido.PENDENTE, null, LocalDateTime.now(), null,
-                List.of(), new BigDecimal("10.00"));
+        responseDTO = PedidoResponse.builder()
+                .id(id).descricao("Test").valor(new BigDecimal("10.00"))
+                .status(StatusPedido.PENDENTE).itens(List.of())
+                .valorTotal(new BigDecimal("10.00")).build();
     }
 
     @Test
@@ -160,9 +170,10 @@ class PedidoServiceDTOTest {
     void avancarStatusDTO_retornaPedidoResponseComNovoStatus() {
         when(repository.findById(id)).thenReturn(Optional.of(pedido));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-        PedidoResponse processando = new PedidoResponse(id, "Test", new BigDecimal("10.00"),
-                StatusPedido.PROCESSANDO, null, LocalDateTime.now(), LocalDateTime.now(),
-                List.of(), new BigDecimal("10.00"));
+        PedidoResponse processando = PedidoResponse.builder()
+                .id(id).descricao("Test").valor(new BigDecimal("10.00"))
+                .status(StatusPedido.PROCESSANDO).itens(List.of())
+                .valorTotal(new BigDecimal("10.00")).build();
         when(mapper.toResponse(any())).thenReturn(processando);
 
         // PENDENTE → CANCELADO is valid without items
@@ -173,13 +184,14 @@ class PedidoServiceDTOTest {
 
     @Test
     void contestarDTO_comMotivo_retornaPedidoResponseContestado() {
-        pedido.setStatus(StatusPedido.CONCLUIDO);
+        pedido.avancarStatus(StatusPedido.CONCLUIDO);
         ContestarRequest request = new ContestarRequest("Produto com defeito");
         when(repository.findById(id)).thenReturn(Optional.of(pedido));
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-        PedidoResponse contestado = new PedidoResponse(id, "Test", new BigDecimal("10.00"),
-                StatusPedido.CONTESTADO, "Produto com defeito", LocalDateTime.now(), LocalDateTime.now(),
-                List.of(), new BigDecimal("10.00"));
+        PedidoResponse contestado = PedidoResponse.builder()
+                .id(id).descricao("Test").valor(new BigDecimal("10.00"))
+                .status(StatusPedido.CONTESTADO).observacao("Produto com defeito")
+                .itens(List.of()).valorTotal(new BigDecimal("10.00")).build();
         when(mapper.toResponse(any())).thenReturn(contestado);
 
         PedidoResponse resultado = service.contestarDTO(id, request);

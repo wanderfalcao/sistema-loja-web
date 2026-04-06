@@ -2,6 +2,8 @@ package br.com.infnet.produto.service;
 
 import br.com.infnet.produto.domain.CategoriaProduto;
 import br.com.infnet.produto.domain.Produto;
+import br.com.infnet.produto.domain.Quantidade;
+import br.com.infnet.produto.domain.Sku;
 import br.com.infnet.produto.domain.TipoOperacaoEstoque;
 import br.com.infnet.produto.domain.exception.ProdutoNaoEncontradoException;
 import br.com.infnet.produto.dto.ProdutoRequest;
@@ -53,20 +55,20 @@ class ProdutoServiceTest {
         "SSD 1TB,            450.00"
     })
     void deveCadastrarProdutosComSkuAutoGerado(String nome, BigDecimal preco) {
-        Produto salvo = Produto.novo(nome.trim(), "AUTO-XXXX", preco);
+        Produto salvo = Produto.novo(nome.trim(), Sku.de("AUTO-XXXX"), preco);
         when(repository.save(any(Produto.class))).thenReturn(salvo);
 
         Produto resultado = service.cadastrar(nome.trim(), preco, null, null, null, null);
 
         assertThat(resultado.getNome()).isEqualTo(nome.trim());
-        assertThat(resultado.getPreco()).isEqualByComparingTo(preco);
+        assertThat(resultado.getPreco().quantia()).isEqualByComparingTo(preco);
         verify(repository).save(any(Produto.class));
     }
 
     @Test
     void deveCadastrarComCategoria() {
-        Produto salvo = Produto.novo("Monitor", "MON-001", new BigDecimal("1000.00"));
-        salvo.setCategoria(CategoriaProduto.MONITORES);
+        Produto salvo = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("1000.00"));
+        salvo.definirCategoria(CategoriaProduto.MONITORES);
         when(repository.save(any(Produto.class))).thenReturn(salvo);
 
         Produto resultado = service.cadastrar("Monitor", new BigDecimal("1000.00"), null, null, CategoriaProduto.MONITORES, null);
@@ -76,16 +78,16 @@ class ProdutoServiceTest {
 
     @Test
     void deveCadastrarComDescricaoEEstoque() {
-        Produto salvo = Produto.novo("Monitor 4K", "MON-4K-XXXX", new BigDecimal("2500.00"));
-        salvo.setDescricao("Ótimo monitor");
-        salvo.setEstoque(5);
+        Produto salvo = Produto.novo("Monitor 4K", Sku.de("MON-4K-XXXX"), new BigDecimal("2500.00"));
+        salvo.definirDescricao("Ótimo monitor");
+        salvo.definirEstoque(Quantidade.de(5));
         when(repository.save(any(Produto.class))).thenReturn(salvo);
 
         Produto resultado = service.cadastrar("Monitor 4K", new BigDecimal("2500.00"),
                 "Ótimo monitor", 5, CategoriaProduto.MONITORES, null);
 
         assertThat(resultado.getDescricao()).isEqualTo("Ótimo monitor");
-        assertThat(resultado.getEstoque()).isEqualTo(5);
+        assertThat(resultado.getEstoque().inteiro()).isEqualTo(5);
     }
 
     @ParameterizedTest
@@ -107,32 +109,32 @@ class ProdutoServiceTest {
     })
     void deveAtualizarProdutoExistente(String novoNome, BigDecimal novoPreco) {
         UUID id = UUID.randomUUID();
-        Produto existente = Produto.novo("Nome Antigo", "SKU-OLD", new BigDecimal("100.0"));
+        Produto existente = Produto.novo("Nome Antigo", Sku.de("SKU-OLD"), new BigDecimal("100.0"));
         when(repository.findById(id)).thenReturn(Optional.of(existente));
         when(repository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Produto atualizado = service.atualizar(id, novoNome, novoPreco, null, null, null, null, null);
 
         assertThat(atualizado.getNome()).isEqualTo(novoNome);
-        assertThat(atualizado.getPreco()).isEqualByComparingTo(novoPreco);
+        assertThat(atualizado.getPreco().quantia()).isEqualByComparingTo(novoPreco);
     }
 
     @Test
     void deveManterSkuExistenteNoUpdate() {
         UUID id = UUID.randomUUID();
-        Produto existente = Produto.novo("Monitor", "SKU-EXISTENTE", new BigDecimal("100.0"));
+        Produto existente = Produto.novo("Monitor", Sku.de("SKU-EXISTENTE"), new BigDecimal("100.0"));
         when(repository.findById(id)).thenReturn(Optional.of(existente));
         when(repository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Produto atualizado = service.atualizar(id, "Monitor Pro", new BigDecimal("200.0"), null, null, null, null, null);
 
-        assertThat(atualizado.getSku()).isEqualTo("SKU-EXISTENTE");
+        assertThat(atualizado.getSku().codigo()).isEqualTo("SKU-EXISTENTE");
     }
 
     @Test
     void deveAtualizarTodosOsCampos() {
         UUID id = UUID.randomUUID();
-        Produto existente = Produto.novo("Monitor", "SKU-OLD", new BigDecimal("100.0"));
+        Produto existente = Produto.novo("Monitor", Sku.de("SKU-OLD"), new BigDecimal("100.0"));
         when(repository.findById(id)).thenReturn(Optional.of(existente));
         when(repository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -141,7 +143,7 @@ class ProdutoServiceTest {
 
         assertThat(atualizado.getNome()).isEqualTo("Monitor Pro");
         assertThat(atualizado.getDescricao()).isEqualTo("Nova descrição");
-        assertThat(atualizado.getEstoque()).isEqualTo(10);
+        assertThat(atualizado.getEstoque().inteiro()).isEqualTo(10);
         assertThat(atualizado.getAtivo()).isFalse();
         assertThat(atualizado.getCategoria()).isEqualTo(CategoriaProduto.MONITORES);
     }
@@ -158,7 +160,7 @@ class ProdutoServiceTest {
 
     @Test
     void deveRemoverProdutoExistente() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.0"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.0"));
         UUID id = produto.getId();
         when(repository.findById(id)).thenReturn(Optional.of(produto));
 
@@ -181,9 +183,9 @@ class ProdutoServiceTest {
     @Test
     void deveRetornarListaCompleta() {
         List<Produto> produtos = List.of(
-                Produto.novo("Mouse", "MOU-001", new BigDecimal("100.0")),
-                Produto.novo("Teclado", "TEC-001", new BigDecimal("200.0")),
-                Produto.novo("Monitor", "MON-001", new BigDecimal("1500.0"))
+                Produto.novo("Mouse",    Sku.de("MOU-001"), new BigDecimal("100.0")),
+                Produto.novo("Teclado",  Sku.de("TEC-001"), new BigDecimal("200.0")),
+                Produto.novo("Monitor",  Sku.de("MON-001"), new BigDecimal("1500.0"))
         );
         when(repository.findAll()).thenReturn(produtos);
 
@@ -197,19 +199,16 @@ class ProdutoServiceTest {
         assertThat(service.listarTodos()).isEmpty();
     }
 
-    // ── Testes REST/DTO ───────────────────────────────────────────────────────
-
     @Test
     void deveCriarDTOComSucesso() {
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor 4K", "Monitor 4K UHD",
                 new BigDecimal("2500.00"), 10, true, null, CategoriaProduto.MONITORES, null);
-        Produto salvo = Produto.novo("Monitor 4K", "MON-4K-XXXX", new BigDecimal("2500.00"));
-        ProdutoResponse response = new ProdutoResponse();
-        response.setNome("Monitor 4K");
+        Produto salvo = Produto.novo("Monitor 4K", Sku.de("MON-4K-XXXX"), new BigDecimal("2500.00"));
+        ProdutoResponse response = ProdutoResponse.builder().nome("Monitor 4K").build();
 
         when(repository.existsByNomeIgnoreCase(request.getNome())).thenReturn(false);
-        when(repository.existsBySkuIgnoreCase(any())).thenReturn(false);
+        when(repository.existsBySku(any())).thenReturn(false);
         when(repository.save(any(Produto.class))).thenReturn(salvo);
         when(mapper.toResponse(any(Produto.class))).thenReturn(response);
 
@@ -237,7 +236,7 @@ class ProdutoServiceTest {
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor 4K", null, new BigDecimal("2500.00"), 10, true, null, null, null);
         when(repository.existsByNomeIgnoreCase(request.getNome())).thenReturn(false);
-        when(repository.existsBySkuIgnoreCase(any())).thenReturn(true);
+        when(repository.existsBySku(any())).thenReturn(true);
 
         assertThatThrownBy(() -> service.criarDTO(request))
                 .isInstanceOf(DomainException.class)
@@ -249,12 +248,10 @@ class ProdutoServiceTest {
     @Test
     void deveBuscarPorSkuRetornarResponse() {
         String sku = "MON-4K-ABCD";
-        Produto produto = Produto.novo("Monitor 4K", sku, new BigDecimal("2500.00"));
-        ProdutoResponse response = new ProdutoResponse();
-        response.setNome("Monitor 4K");
-        response.setSku(sku);
+        Produto produto = Produto.novo("Monitor 4K", Sku.de(sku), new BigDecimal("2500.00"));
+        ProdutoResponse response = ProdutoResponse.builder().nome("Monitor 4K").sku(sku).build();
 
-        when(repository.findBySkuIgnoreCase(sku)).thenReturn(Optional.of(produto));
+        when(repository.findBySku(Sku.de(sku))).thenReturn(Optional.of(produto));
         when(mapper.toResponse(produto)).thenReturn(response);
 
         ProdutoResponse resultado = service.buscarPorSku(sku);
@@ -266,7 +263,7 @@ class ProdutoServiceTest {
     @Test
     void deveBuscarPorSkuLancarExcecaoQuandoNaoEncontrado() {
         String sku = "SKU-INVALIDO";
-        when(repository.findBySkuIgnoreCase(sku)).thenReturn(Optional.empty());
+        when(repository.findBySku(Sku.de(sku))).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.buscarPorSku(sku))
                 .isInstanceOf(DomainException.class)
@@ -275,11 +272,10 @@ class ProdutoServiceTest {
 
     @Test
     void deveAjustarEstoqueEntrada() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
-        produto.setEstoque(10);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        produto.definirEstoque(Quantidade.de(10));
         UUID id = produto.getId();
-        ProdutoResponse response = new ProdutoResponse();
-        response.setEstoque(60);
+        ProdutoResponse response = ProdutoResponse.builder().estoque(60).build();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(repository.save(any(Produto.class))).thenReturn(produto);
@@ -292,8 +288,8 @@ class ProdutoServiceTest {
 
     @Test
     void deveLancarExcecaoAoAjustarEstoqueInsuficiente() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
-        produto.setEstoque(5);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        produto.definirEstoque(Quantidade.de(5));
         UUID id = produto.getId();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
@@ -305,11 +301,10 @@ class ProdutoServiceTest {
 
     @Test
     void deveAjustarEstoqueSaidaComSucesso() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
-        produto.setEstoque(20);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        produto.definirEstoque(Quantidade.de(20));
         UUID id = produto.getId();
-        ProdutoResponse response = new ProdutoResponse();
-        response.setEstoque(10);
+        ProdutoResponse response = ProdutoResponse.builder().estoque(10).build();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(repository.save(any(Produto.class))).thenReturn(produto);
@@ -330,11 +325,9 @@ class ProdutoServiceTest {
 
     @Test
     void deveRetornarBuscarDTO() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
         UUID id = produto.getId();
-        ProdutoResponse response = new ProdutoResponse();
-        response.setId(id);
-        response.setNome("Monitor");
+        ProdutoResponse response = ProdutoResponse.builder().id(id).nome("Monitor").build();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(mapper.toResponse(produto)).thenReturn(response);
@@ -347,9 +340,8 @@ class ProdutoServiceTest {
 
     @Test
     void deveRetornarPaginaAtivos() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
-        ProdutoResponse response = new ProdutoResponse();
-        response.setNome("Monitor");
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        ProdutoResponse response = ProdutoResponse.builder().nome("Monitor").build();
         Pageable pageable = PageRequest.of(0, 20);
 
         when(repository.findAllByAtivo(eq(true), any(Pageable.class)))
@@ -367,9 +359,8 @@ class ProdutoServiceTest {
         UUID id = UUID.randomUUID();
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor Pro", null, new BigDecimal("3000.00"), 5, true, null, null, null);
-        Produto produto = Produto.novo("Monitor", "MON-XXXX", new BigDecimal("2500.00"));
-        ProdutoResponse response = new ProdutoResponse();
-        response.setNome("Monitor Pro");
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-XXXX"), new BigDecimal("2500.00"));
+        ProdutoResponse response = ProdutoResponse.builder().nome("Monitor Pro").build();
 
         when(repository.existsByNomeIgnoreCaseAndIdNot(request.getNome(), id)).thenReturn(false);
         when(repository.findById(id)).thenReturn(Optional.of(produto));
@@ -384,7 +375,7 @@ class ProdutoServiceTest {
     @Test
     void deveLancarExcecaoAoAtualizarDTOComNomeDuplicado() {
         UUID id = UUID.randomUUID();
-        Produto existente = Produto.novo("Monitor", "MON-XXXX", new BigDecimal("2500.00"));
+        Produto existente = Produto.novo("Monitor", Sku.de("MON-XXXX"), new BigDecimal("2500.00"));
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor Pro", null, new BigDecimal("3000.00"), 5, true, null, null, null);
 
@@ -400,8 +391,8 @@ class ProdutoServiceTest {
 
     @Test
     void deveLancarExcecaoAoRemoverProdutoComEstoque() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.0"));
-        produto.setEstoque(5);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.0"));
+        produto.definirEstoque(Quantidade.de(5));
         UUID id = produto.getId();
         when(repository.findById(id)).thenReturn(Optional.of(produto));
 
@@ -417,7 +408,7 @@ class ProdutoServiceTest {
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor Ativo", null, new BigDecimal("2500.00"), 0, true, null, null, null);
         when(repository.existsByNomeIgnoreCase(request.getNome())).thenReturn(false);
-        when(repository.existsBySkuIgnoreCase(any())).thenReturn(false);
+        when(repository.existsBySku(any())).thenReturn(false);
 
         assertThatThrownBy(() -> service.criarDTO(request))
                 .isInstanceOf(DomainException.class)
@@ -431,8 +422,8 @@ class ProdutoServiceTest {
         UUID id = UUID.randomUUID();
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor Pro", null, new BigDecimal("3000.00"), 0, true, null, null, null);
-        Produto produto = Produto.novo("Monitor", "MON-XXXX", new BigDecimal("2500.00"));
-        produto.setEstoque(0);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-XXXX"), new BigDecimal("2500.00"));
+        produto.definirEstoque(Quantidade.de(0));
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(repository.existsByNomeIgnoreCaseAndIdNot(request.getNome(), id)).thenReturn(false);
@@ -446,9 +437,9 @@ class ProdutoServiceTest {
 
     @Test
     void deveLancarExcecaoSaidaParaProdutoInativo() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
         produto.desativar();
-        produto.setEstoque(10);
+        produto.definirEstoque(Quantidade.de(10));
         UUID id = produto.getId();
         when(repository.findById(id)).thenReturn(Optional.of(produto));
 
@@ -459,12 +450,11 @@ class ProdutoServiceTest {
 
     @Test
     void deveDesativarProdutoQuandoEstoqueCaiAbaixoDoMinimo() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
-        produto.setEstoque(5);
-        produto.setEstoqueMinimo(5);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        produto.definirEstoque(Quantidade.de(5));
+        produto.definirEstoqueMinimo(Quantidade.de(5));
         UUID id = produto.getId();
-        ProdutoResponse response = new ProdutoResponse();
-        response.setAtivo(false);
+        ProdutoResponse response = ProdutoResponse.builder().ativo(false).build();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(repository.save(any(Produto.class))).thenReturn(produto);
@@ -477,13 +467,12 @@ class ProdutoServiceTest {
 
     @Test
     void deveReativarProdutoAoReceberEstoqueEntrada() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.00"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
         produto.desativar();
-        produto.setEstoque(0);
-        produto.setEstoqueMinimo(0);
+        produto.definirEstoque(Quantidade.de(0));
+        produto.definirEstoqueMinimo(Quantidade.de(0));
         UUID id = produto.getId();
-        ProdutoResponse response = new ProdutoResponse();
-        response.setAtivo(true);
+        ProdutoResponse response = ProdutoResponse.builder().ativo(true).build();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(repository.save(any(Produto.class))).thenReturn(produto);
@@ -496,10 +485,9 @@ class ProdutoServiceTest {
 
     @Test
     void deveAtivarPromocaoComSucesso() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("1000.00"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("1000.00"));
         UUID id = produto.getId();
-        ProdutoResponse response = new ProdutoResponse();
-        response.setPrecoComDesconto(new BigDecimal("800.00"));
+        ProdutoResponse response = ProdutoResponse.builder().precoComDesconto(new BigDecimal("800.00")).build();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(repository.save(any(Produto.class))).thenReturn(produto);
@@ -513,10 +501,10 @@ class ProdutoServiceTest {
 
     @Test
     void deveEncerrarPromocaoComSucesso() {
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("1000.00"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("1000.00"));
         produto.ativarPromocao(new BigDecimal("20"), null, null);
         UUID id = produto.getId();
-        ProdutoResponse response = new ProdutoResponse();
+        ProdutoResponse response = ProdutoResponse.builder().build();
 
         when(repository.findById(id)).thenReturn(Optional.of(produto));
         when(repository.save(any(Produto.class))).thenReturn(produto);

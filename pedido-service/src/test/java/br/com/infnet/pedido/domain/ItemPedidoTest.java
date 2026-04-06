@@ -30,9 +30,9 @@ class ItemPedidoTest {
         assertThat(item.getId()).isNotNull();
         assertThat(item.getNomeProduto()).isEqualTo("Monitor 4K");
         assertThat(item.getSkuProduto()).isEqualTo("MON-001");
-        assertThat(item.getPrecoUnitario()).isEqualByComparingTo("2500.00");
-        assertThat(item.getQuantidade()).isEqualTo(2);
-        assertThat(item.getSubtotal()).isEqualByComparingTo("5000.00");
+        assertThat(item.getPrecoUnitario().quantia()).isEqualByComparingTo("2500.00");
+        assertThat(item.getQuantidade().inteiro()).isEqualTo(2);
+        assertThat(item.getSubtotal().quantia()).isEqualByComparingTo("5000.00");
         assertThat(item.getPedido()).isEqualTo(pedido);
     }
 
@@ -43,7 +43,7 @@ class ItemPedidoTest {
 
         ItemPedido item = ItemPedidoFactory.criar(pedido, request);
 
-        assertThat(item.getSubtotal()).isEqualByComparingTo("599.70");
+        assertThat(item.getSubtotal().quantia()).isEqualByComparingTo("599.70");
     }
 
     @Test
@@ -108,6 +108,6 @@ class ItemPedidoTest {
 
     @Test
     void pedidoSemItens_calcularTotal_deveRetornarValorManual() {
-        assertThat(pedido.calcularTotal()).isEqualByComparingTo(pedido.getValor());
+        assertThat(pedido.calcularTotal()).isEqualByComparingTo(pedido.getValor().quantia());
     }
 }

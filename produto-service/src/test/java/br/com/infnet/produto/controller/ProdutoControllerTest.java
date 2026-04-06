@@ -2,6 +2,7 @@ package br.com.infnet.produto.controller;
 
 import br.com.infnet.controller.GlobalExceptionHandler;
 import br.com.infnet.produto.domain.Produto;
+import br.com.infnet.produto.domain.Sku;
 import br.com.infnet.produto.domain.exception.ProdutoNaoEncontradoException;
 import br.com.infnet.produto.dto.ProdutoResponse;
 import br.com.infnet.produto.service.ProdutoService;
@@ -42,8 +43,8 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveRetornarListaDeProdutosComStatus200() throws Exception {
         when(service.filtrar(any(), any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(
-                Produto.novo("Monitor", "MON-001", new BigDecimal("2500.0")),
-                Produto.novo("Mouse", "MOU-001", new BigDecimal("150.0"))
+                Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.0")),
+                Produto.novo("Mouse", Sku.de("MOU-001"), new BigDecimal("150.0"))
         )));
 
         mockMvc.perform(get("/produtos"))
@@ -71,7 +72,7 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveCadastrarProdutoERedirecionarParaLista(String nome, BigDecimal preco) throws Exception {
         when(service.cadastrar(eq(nome.trim()), eq(preco), any(), any(), any(), any()))
-                .thenReturn(Produto.novo(nome.trim(), "SKU-AUTO", preco));
+                .thenReturn(Produto.novo(nome.trim(), Sku.de("SKU-AUTO"), preco));
 
         mockMvc.perform(post("/produtos")
                         .with(csrf())
@@ -85,7 +86,7 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveExibirDetalheComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
-        Produto produto = Produto.novo("Monitor", "MON-XXXX", new BigDecimal("2500.0"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-XXXX"), new BigDecimal("2500.0"));
         when(service.buscarPorId(id)).thenReturn(produto);
 
         mockMvc.perform(get("/produtos/{id}", id))
@@ -109,7 +110,7 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveExibirFormularioPreenchidoParaEdicao() throws Exception {
         UUID id = UUID.randomUUID();
-        Produto produto = Produto.novo("Monitor", "MON-001", new BigDecimal("2500.0"));
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.0"));
         when(service.buscarPorId(id)).thenReturn(produto);
 
         mockMvc.perform(get("/produtos/{id}/editar", id))
@@ -125,7 +126,7 @@ class ProdutoControllerTest {
     void deveAtualizarProdutoERedirecionarParaLista() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.atualizar(eq(id), eq("Monitor Atualizado"), any(BigDecimal.class), any(), any(), any(), any(), any()))
-                .thenReturn(Produto.novo("Monitor Atualizado", "MON-ATU-001", new BigDecimal("3000.0")));
+                .thenReturn(Produto.novo("Monitor Atualizado", Sku.de("MON-ATU-001"), new BigDecimal("3000.0")));
 
         mockMvc.perform(post("/produtos/{id}", id)
                         .with(csrf())
@@ -205,7 +206,7 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveAtivarPromocaoERedirecionarParaDetalhe() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(new ProdutoResponse());
+        when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(ProdutoResponse.builder().build());
 
         mockMvc.perform(post("/produtos/{id}/promocao", id)
                         .with(csrf())
@@ -218,7 +219,7 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveAtivarPromocaoComDatasERedirecionarParaDetalhe() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(new ProdutoResponse());
+        when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(ProdutoResponse.builder().build());
 
         mockMvc.perform(post("/produtos/{id}/promocao", id)
                         .with(csrf())
@@ -247,7 +248,7 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveEncerrarPromocaoERedirecionarParaDetalhe() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.encerrarPromocao(id)).thenReturn(new ProdutoResponse());
+        when(service.encerrarPromocao(id)).thenReturn(ProdutoResponse.builder().build());
 
         mockMvc.perform(post("/produtos/{id}/promocao/encerrar", id)
                         .with(csrf()))

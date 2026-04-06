@@ -2,6 +2,7 @@ package br.com.infnet.produto.fuzz;
 
 import br.com.infnet.produto.domain.CategoriaProduto;
 import br.com.infnet.produto.domain.Produto;
+import br.com.infnet.produto.domain.Sku;
 import br.com.infnet.produto.domain.SkuGenerator;
 import br.com.infnet.shared.exception.DomainException;
 import net.jqwik.api.*;
@@ -36,11 +37,11 @@ class ProdutoFuzzTest {
         Assume.that(nomeNormalizado.length() <= Produto.MAX_NOME);
 
         String sku = SkuGenerator.fromNome(nomeNormalizado);
-        Produto p = Produto.novo(nomeNormalizado, sku, preco);
+        Produto p = Produto.novo(nomeNormalizado, Sku.de(sku), preco);
 
         assertThat(p.getNome()).isEqualTo(nomeNormalizado);
-        assertThat(p.getSku()).isEqualTo(sku);
-        assertThat(p.getPreco()).isEqualByComparingTo(preco);
+        assertThat(p.getSku().codigo()).isEqualTo(sku);
+        assertThat(p.getPreco().quantia()).isEqualByComparingTo(preco);
         assertThat(p.getId()).isNotNull();
     }
 
@@ -58,10 +59,10 @@ class ProdutoFuzzTest {
         Assume.that(nomeNormalizado.length() <= Produto.MAX_NOME);
 
         String sku = SkuGenerator.fromNome(nomeNormalizado);
-        Produto p = Produto.novo(nomeNormalizado, sku, preco);
-        p.setCategoria(categoria);
+        Produto p = Produto.novo(nomeNormalizado, Sku.de(sku), preco);
+        p.definirCategoria(categoria);
 
-        assertThat(p.getPreco()).isGreaterThan(BigDecimal.ZERO);
+        assertThat(p.getPreco().quantia()).isGreaterThan(BigDecimal.ZERO);
         assertThat(p.getCategoria()).isEqualTo(categoria);
     }
 
@@ -88,7 +89,7 @@ class ProdutoFuzzTest {
 
         Assume.that(preco.compareTo(BigDecimal.ZERO) <= 0);
 
-        assertThatThrownBy(() -> Produto.novo("Produto Valido", "SKU-001", preco))
+        assertThatThrownBy(() -> Produto.novo("Produto Valido", Sku.de("SKU-001"), preco))
                 .isInstanceOf(DomainException.class);
     }
 }

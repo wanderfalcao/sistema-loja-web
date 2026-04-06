@@ -6,13 +6,13 @@ import br.com.infnet.pedido.domain.StatusPedido;
 import br.com.infnet.pedido.mapper.PedidoMapper;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
-import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.shared.exception.DomainException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -42,7 +42,16 @@ class PedidoParametrizadoTest {
     ProdutoServiceClient produtoServiceClient;
 
     @Mock
-    StatusHistoricoRepository statusHistoricoRepository;
+    EstoqueOrquestrador estoqueOrquestrador;
+
+    @Mock
+    StatusHistoricoRegistrador historicoRegistrador;
+
+    @Spy
+    PedidoValidador validador;
+
+    @Spy
+    PedidoStatusMachine statusMachine;
 
     @InjectMocks
     PedidoService service;
@@ -62,10 +71,9 @@ class PedidoParametrizadoTest {
         Pedido p = service.criar(descricao, valor);
 
         assertThat(p.getDescricao()).isNotBlank();
-        assertThat(p.getValor()).isEqualByComparingTo(valor);
+        assertThat(p.getValor().quantia()).isEqualByComparingTo(valor);
         assertThat(p.getStatus()).isEqualTo(StatusPedido.PENDENTE);
         assertThat(p.getId()).isNotNull();
-        assertThat(p.getDataCriacao()).isNotNull();
     }
 
     @ParameterizedTest(name = "criar com descrição inválida: \"{0}\"")
@@ -185,7 +193,7 @@ class PedidoParametrizadoTest {
         Pedido resultado = service.atualizar(id, novaDesc, novoValor, null);
 
         assertThat(resultado.getDescricao()).isEqualTo(novaDesc.trim());
-        assertThat(resultado.getValor()).isEqualByComparingTo(novoValor);
+        assertThat(resultado.getValor().quantia()).isEqualByComparingTo(novoValor);
     }
 
     @ParameterizedTest(name = "atualizar com descrição inválida: \"{0}\"")

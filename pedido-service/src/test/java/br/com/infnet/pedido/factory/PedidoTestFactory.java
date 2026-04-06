@@ -13,7 +13,7 @@ public class PedidoTestFactory {
 
     public static Pedido pedidoCom(StatusPedido status) {
         Pedido p = pedidoPendente();
-        p.setStatus(status);
+        p.avancarStatus(status);
         return p;
     }
 }

@@ -12,6 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.QueryTimeoutException;
@@ -36,6 +37,18 @@ class PedidoFalhaInfraTest {
 
     @Mock
     ProdutoServiceClient produtoServiceClient;
+
+    @Mock
+    EstoqueOrquestrador estoqueOrquestrador;
+
+    @Mock
+    StatusHistoricoRegistrador historicoRegistrador;
+
+    @Spy
+    PedidoValidador validador;
+
+    @Spy
+    PedidoStatusMachine statusMachine;
 
     @InjectMocks
     PedidoService service;

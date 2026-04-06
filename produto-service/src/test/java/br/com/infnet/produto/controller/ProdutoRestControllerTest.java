@@ -54,8 +54,8 @@ class ProdutoRestControllerTest {
     @Test
     @WithMockUser
     void deveListarProdutosComStatus200() throws Exception {
-        ProdutoResponse r1 = buildResponse(UUID.randomUUID(), "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
-        ProdutoResponse r2 = buildResponse(UUID.randomUUID(), "Mouse Gamer", "MOU-GAM-001", new BigDecimal("150.00"));
+        ProdutoResponse r1 = buildResponse(UUID.randomUUID(), "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"), 10);
+        ProdutoResponse r2 = buildResponse(UUID.randomUUID(), "Mouse Gamer", "MOU-GAM-001", new BigDecimal("150.00"), 10);
 
         when(service.listar(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(r1, r2)));
@@ -70,7 +70,7 @@ class ProdutoRestControllerTest {
     @WithMockUser
     void deveBuscarProdutoPorIdComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
-        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
+        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"), 10);
         when(service.buscarDTO(id)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/produtos/{id}", id))
@@ -94,7 +94,7 @@ class ProdutoRestControllerTest {
     @WithMockUser
     void deveBuscarProdutoPorSkuComStatus200() throws Exception {
         String sku = "MON-4K-ABCD";
-        ProdutoResponse response = buildResponse(UUID.randomUUID(), "Monitor 4K", sku, new BigDecimal("2500.00"));
+        ProdutoResponse response = buildResponse(UUID.randomUUID(), "Monitor 4K", sku, new BigDecimal("2500.00"), 10);
         when(service.buscarPorSku(sku)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/produtos/sku/{sku}", sku))
@@ -121,7 +121,7 @@ class ProdutoRestControllerTest {
                 "Monitor 4K", "Monitor 4K UHD",
                 new BigDecimal("2500.00"), 10, true, null, null, null);
         UUID id = UUID.randomUUID();
-        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
+        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"), 10);
         when(service.criarDTO(any(ProdutoRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/produtos")
@@ -155,7 +155,7 @@ class ProdutoRestControllerTest {
         ProdutoRequest request = new ProdutoRequest(
                 "Monitor 4K Pro", null,
                 new BigDecimal("3200.00"), 5, true, null, null, null);
-        ProdutoResponse response = buildResponse(id, "Monitor 4K Pro", "MON-4K-PRO", new BigDecimal("3200.00"));
+        ProdutoResponse response = buildResponse(id, "Monitor 4K Pro", "MON-4K-PRO", new BigDecimal("3200.00"), 10);
         when(service.atualizarDTO(eq(id), any(ProdutoRequest.class))).thenReturn(response);
 
         mockMvc.perform(put("/api/v1/produtos/{id}", id)
@@ -184,8 +184,7 @@ class ProdutoRestControllerTest {
     void deveAjustarEstoqueComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         AjusteEstoqueRequest ajuste = new AjusteEstoqueRequest(TipoOperacaoEstoque.ENTRADA, 50);
-        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
-        response.setEstoque(60);
+        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"), 60);
         when(service.ajustarEstoque(eq(id), eq(TipoOperacaoEstoque.ENTRADA), eq(50))).thenReturn(response);
 
         mockMvc.perform(patch("/api/v1/produtos/{id}/estoque", id)
@@ -228,8 +227,8 @@ class ProdutoRestControllerTest {
     void deveAtivarPromocaoComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
         PromocaoRequest request = new PromocaoRequest(new java.math.BigDecimal("20"), null, null);
-        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
-        response.setPrecoComDesconto(new BigDecimal("2000.00"));
+        ProdutoResponse response = buildResponseComDesconto(id, "Monitor 4K", "MON-4K-001",
+                new BigDecimal("2500.00"), new BigDecimal("2000.00"));
         when(service.ativarPromocao(eq(id), any(), any(), any())).thenReturn(response);
 
         mockMvc.perform(patch("/api/v1/produtos/{id}/promocao", id)
@@ -244,7 +243,7 @@ class ProdutoRestControllerTest {
     @WithMockUser
     void deveEncerrarPromocaoRestComStatus200() throws Exception {
         UUID id = UUID.randomUUID();
-        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"));
+        ProdutoResponse response = buildResponse(id, "Monitor 4K", "MON-4K-001", new BigDecimal("2500.00"), 10);
         when(service.encerrarPromocao(id)).thenReturn(response);
 
         mockMvc.perform(delete("/api/v1/produtos/{id}/promocao", id)
@@ -293,14 +292,18 @@ class ProdutoRestControllerTest {
                 .andExpect(jsonPath("$.title").value("Regra de negócio violada"));
     }
 
-    private ProdutoResponse buildResponse(UUID id, String nome, String sku, BigDecimal preco) {
-        ProdutoResponse r = new ProdutoResponse();
-        r.setId(id);
-        r.setNome(nome);
-        r.setSku(sku);
-        r.setPreco(preco);
-        r.setEstoque(10);
-        r.setAtivo(true);
-        return r;
+    private ProdutoResponse buildResponse(UUID id, String nome, String sku, BigDecimal preco, int estoque) {
+        return ProdutoResponse.builder()
+                .id(id).nome(nome).sku(sku).preco(preco)
+                .estoque(estoque).ativo(true)
+                .build();
+    }
+
+    private ProdutoResponse buildResponseComDesconto(UUID id, String nome, String sku,
+                                                      BigDecimal preco, BigDecimal desconto) {
+        return ProdutoResponse.builder()
+                .id(id).nome(nome).sku(sku).preco(preco)
+                .estoque(10).ativo(true).precoComDesconto(desconto)
+                .build();
     }
 }

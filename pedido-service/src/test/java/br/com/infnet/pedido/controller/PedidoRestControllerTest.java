@@ -59,9 +59,10 @@ class PedidoRestControllerTest {
     @BeforeEach
     void setUp() {
         id = UUID.randomUUID();
-        response = new PedidoResponse(id, "Pedido Teste", new BigDecimal("50.00"),
-                StatusPedido.PENDENTE, null, LocalDateTime.now(), null,
-                List.of(), new BigDecimal("50.00"));
+        response = PedidoResponse.builder()
+                .id(id).descricao("Pedido Teste").valor(new BigDecimal("50.00"))
+                .status(StatusPedido.PENDENTE).itens(List.of())
+                .valorTotal(new BigDecimal("50.00")).build();
     }
 
     @Test
@@ -168,9 +169,10 @@ class PedidoRestControllerTest {
 
     @Test
     void avancarStatus_valido_retorna200() throws Exception {
-        PedidoResponse processando = new PedidoResponse(id, "Pedido Teste", new BigDecimal("50.00"),
-                StatusPedido.PROCESSANDO, null, LocalDateTime.now(), LocalDateTime.now(),
-                List.of(), new BigDecimal("50.00"));
+        PedidoResponse processando = PedidoResponse.builder()
+                .id(id).descricao("Pedido Teste").valor(new BigDecimal("50.00"))
+                .status(StatusPedido.PROCESSANDO).itens(List.of())
+                .valorTotal(new BigDecimal("50.00")).build();
         when(service.avancarStatusDTO(eq(id), eq(StatusPedido.PROCESSANDO))).thenReturn(processando);
 
         mockMvc.perform(post("/api/v1/pedidos/" + id + "/status")
@@ -194,9 +196,10 @@ class PedidoRestControllerTest {
     @Test
     void contestar_comMotivo_retorna200() throws Exception {
         ContestarRequest request = new ContestarRequest("Produto com defeito");
-        PedidoResponse contestado = new PedidoResponse(id, "Pedido Teste", new BigDecimal("50.00"),
-                StatusPedido.CONTESTADO, "Produto com defeito", LocalDateTime.now(), LocalDateTime.now(),
-                List.of(), new BigDecimal("50.00"));
+        PedidoResponse contestado = PedidoResponse.builder()
+                .id(id).descricao("Pedido Teste").valor(new BigDecimal("50.00"))
+                .status(StatusPedido.CONTESTADO).observacao("Produto com defeito")
+                .itens(List.of()).valorTotal(new BigDecimal("50.00")).build();
         when(service.contestarDTO(eq(id), any())).thenReturn(contestado);
 
         mockMvc.perform(post("/api/v1/pedidos/" + id + "/contestar")
