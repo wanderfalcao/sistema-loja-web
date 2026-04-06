@@ -45,7 +45,7 @@ jobs:
       # credenciais temporárias — nenhuma chave de longa duração armazenada.
       - name: Autenticar no GCP via OIDC (Workload Identity Federation)
         id: gcp-auth
-        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
@@ -131,7 +131,7 @@ jobs:
       # com permissões restritas apenas ao Cloud Run do ambiente alvo.
       - name: Autenticar no GCP via OIDC (dev)
         id: gcp-auth
-        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
@@ -247,7 +247,7 @@ jobs:
     steps:
       - name: Autenticar no GCP via OIDC (test)
         id: gcp-auth
-        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
@@ -359,7 +359,7 @@ jobs:
     steps:
       - name: Autenticar no GCP via OIDC (prod)
         id: gcp-auth
-        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
+        continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
