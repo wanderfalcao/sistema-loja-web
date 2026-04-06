@@ -294,9 +294,9 @@
                             <td class="text-muted" th:text="${item.skuProduto ?: '—'}"></td>
                             <td class="text-center" th:text="${item.quantidade}"></td>
                             <td class="text-end"
-                                th:text="${'R$ ' + #numbers.formatDecimal(item.precoUnitario, 1, 'POINT', 2, 'COMMA')}"></td>
+                                th:text="${'R$ ' + #numbers.formatDecimal(item.precoUnitario.quantia, 1, 'POINT', 2, 'COMMA')}"></td>
                             <td class="text-end fw-semibold"
-                                th:text="${'R$ ' + #numbers.formatDecimal(item.subtotal, 1, 'POINT', 2, 'COMMA')}"></td>
+                                th:text="${'R$ ' + #numbers.formatDecimal(item.subtotal.quantia, 1, 'POINT', 2, 'COMMA')}"></td>
                             <td th:if="${pedido.status.name() == 'PENDENTE'}" class="text-end">
                                 <form th:action="@{/pedidos/{id}/itens/{itemId}/remover(id=${pedido.id},itemId=${item.id})}"
                                       method="post" class="d-inline">

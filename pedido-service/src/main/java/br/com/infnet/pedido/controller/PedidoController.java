@@ -96,9 +96,9 @@ public class PedidoController {
                         @RequestParam String valor,
                         @RequestParam(required = false) String observacao,
                         RedirectAttributes ra) {
-        service.criar(descricao, parsearValor(valor), observacao);
-        ra.addFlashAttribute(FLASH_SUCESSO, MSG_CRIADO);
-        return REDIRECT_LISTA;
+        Pedido pedido = service.criar(descricao, parsearValor(valor), observacao);
+        ra.addFlashAttribute(FLASH_SUCESSO, MSG_CRIADO + " Adicione os produtos abaixo.");
+        return redirectDetalhe(pedido.getId());
     }
 
     @GetMapping("/{id}/editar")
