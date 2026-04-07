@@ -11,12 +11,12 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
-import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,6 +41,9 @@ class ProdutoSeleniumTest {
     private ProdutoRepository repository;
 
     private static WebDriver driver;
+
+    /** Rastreia nomes dos produtos criados em cada teste para cleanup em remote mode. */
+    private final List<String> createdNomes = new ArrayList<>();
 
     private String baseUrl() {
         return REMOTE_MODE ? REMOTE_URL : "http://localhost:" + porta;
@@ -67,7 +70,20 @@ class ProdutoSeleniumTest {
 
     @BeforeEach
     void limparBanco() {
+        createdNomes.clear();
         if (!REMOTE_MODE) repository.deleteAll();
+    }
+
+    @AfterEach
+    void limparRemote() {
+        if (!REMOTE_MODE || createdNomes.isEmpty()) return;
+        driver.get(baseUrl() + "/produtos");
+        for (String nome : new ArrayList<>(createdNomes)) {
+            try {
+                new ProdutoListPage(driver).clicarExcluirPorNome(nome);
+                driver.get(baseUrl() + "/produtos");
+            } catch (Exception ignored) { /* produto já deletado pelo próprio teste */ }
+        }
     }
 
     private ProdutoListPage abrirLista() {
@@ -75,56 +91,67 @@ class ProdutoSeleniumTest {
         return new ProdutoListPage(driver);
     }
 
+    private ProdutoListPage criarProdutoNaLista(String nome, String preco) {
+        ProdutoListPage lista = abrirLista();
+        lista = lista.clicarNovoProduto().preencherESalvar(nome, preco);
+        createdNomes.add(nome);
+        return lista;
+    }
+
+    private ProdutoListPage criarProdutoCompleto(String nome, String preco, String desc, String estoque) {
+        ProdutoListPage lista = abrirLista();
+        lista = lista.clicarNovoProduto().preencherCompleto(nome, preco, desc, estoque);
+        createdNomes.add(nome);
+        return lista;
+    }
+
     @Test
     @Order(1)
     void deveCadastrarProdutoEExibirNaLista() {
         ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Monitor 4K", "2500.00");
+        int antes = lista.contarProdutos();
+        lista = criarProdutoNaLista("Monitor 4K", "2500.00");
 
-        assertThat(lista.contarProdutos()).isEqualTo(1);
+        assertThat(lista.contarProdutos()).isEqualTo(antes + 1);
     }
 
     @Test
     @Order(2)
     void deveCadastrarMultiplosProdutosEContabilizarCorretamente() {
         ProdutoListPage lista = abrirLista();
+        int antes = lista.contarProdutos();
 
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Teclado Mecanico", "350.00");
+        criarProdutoNaLista("Teclado Mecanico", "350.00");
+        criarProdutoNaLista("Mouse Gamer", "199.90");
+        lista = criarProdutoNaLista("Webcam HD", "89.90");
 
-        form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Mouse Gamer", "199.90");
-
-        form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Webcam HD", "89.90");
-
-        assertThat(lista.contarProdutos()).isEqualTo(3);
+        assertThat(lista.contarProdutos()).isEqualTo(antes + 3);
     }
 
     @Test
     @Order(3)
     void deveEditarProdutoEExibirMensagemDeSucesso() {
-        ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Produto Original", "100.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Original", "100.00");
 
-        form = lista.clicarEditarNaLinha(0);
+        ProdutoFormPage form = lista.clicarEditarPorNome("Produto Original");
         assertThat(form.getValorNome()).isEqualTo("Produto Original");
 
         lista = form.preencherESalvar("Produto Editado", "200.00");
+        // rastrear nome novo para cleanup
+        createdNomes.remove("Produto Original");
+        createdNomes.add("Produto Editado");
         assertThat(lista.alertaSucessoVisivel()).isTrue();
     }
 
     @Test
     @Order(4)
     void deveExcluirProdutoEDecrementarContagem() {
-        ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Produto para Excluir", "10.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto para Excluir", "10.00");
         int antes = lista.contarProdutos();
 
-        lista = lista.clicarExcluirNaLinha(0);
+        lista = lista.clicarExcluirPorNome("Produto para Excluir");
+        // já deletado pelo teste — remover do tracking
+        createdNomes.remove("Produto para Excluir");
 
         assertThat(lista.contarProdutos()).isLessThan(antes);
     }
@@ -172,18 +199,16 @@ class ProdutoSeleniumTest {
     @Order(8)
     void deveCadastrarProdutosParametrizados(String nome, String preco) {
         ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar(nome.trim(), preco.trim());
+        int antes = lista.contarProdutos();
+        lista = criarProdutoNaLista(nome.trim(), preco.trim());
 
-        assertThat(lista.contarProdutos()).isEqualTo(1);
+        assertThat(lista.contarProdutos()).isEqualTo(antes + 1);
     }
 
     @Test
     @Order(9)
     void deveManterProdutoAoCancelarConfirmacaoDeExclusao() {
-        ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Produto Cancelado", "50.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Cancelado", "50.00");
         int antes = lista.contarProdutos();
 
         lista = lista.cancelarExcluirNaLinha(0);
@@ -195,11 +220,11 @@ class ProdutoSeleniumTest {
     @Order(10)
     void devePersistirDescricaoEEstoqueAoCadastrar() {
         ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherCompleto("Monitor Full HD", "1200.00", "Monitor de alta resolução", "15");
+        int antes = lista.contarProdutos();
+        lista = criarProdutoCompleto("Monitor Full HD", "1200.00", "Monitor de alta resolução", "15");
 
-        assertThat(lista.contarProdutos()).isEqualTo(1);
-        ProdutoDetalhePage detalhe = lista.clicarDetalheNaLinha(0);
+        assertThat(lista.contarProdutos()).isEqualTo(antes + 1);
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Monitor Full HD");
         assertThat(detalhe.getNome()).isEqualTo("Monitor Full HD");
         assertThat(detalhe.getEstoque()).isEqualTo("15");
         assertThat(detalhe.getDescricao()).contains("alta resolução");
@@ -208,11 +233,9 @@ class ProdutoSeleniumTest {
     @Test
     @Order(11)
     void deveNavegaParaDetalheProduto() {
-        ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Produto Detalhe Teste", "299.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Detalhe Teste", "299.00");
 
-        ProdutoDetalhePage detalhe = lista.clicarDetalheNaLinha(0);
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Produto Detalhe Teste");
 
         assertThat(detalhe.getNome()).isEqualTo("Produto Detalhe Teste");
         assertThat(driver.getCurrentUrl()).contains("/produtos/");
@@ -221,11 +244,9 @@ class ProdutoSeleniumTest {
     @Test
     @Order(12)
     void deveExibirPreviewCorretoAoDigitarPercentualDePromocao() {
-        ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Produto Promo", "1000.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Promo", "1000.00");
 
-        ProdutoDetalhePage detalhe = lista.clicarDetalheNaLinha(0);
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Produto Promo");
         detalhe.ativarFormPromo();
         String preview = detalhe.preencherPromocaoEObterPreview("10");
 
@@ -238,20 +259,19 @@ class ProdutoSeleniumTest {
         driver.get(baseUrl() + "/produtos/novo");
         ProdutoFormPage form = new ProdutoFormPage(driver);
         ProdutoListPage lista = form.preencherCompleto("Smartphone Premium", "3500.00", "Celular top de linha", "20");
+        createdNomes.add("Smartphone Premium");
 
         assertThat(lista.contarProdutos()).isGreaterThan(0);
-        ProdutoDetalhePage detalhe = lista.clicarDetalheNaLinha(0);
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Smartphone Premium");
         assertThat(detalhe.getNome()).isEqualTo("Smartphone Premium");
     }
 
     @Test
     @Order(14)
     void deveGerarSkuAutomaticoAoCadastrar() {
-        ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("Notebook Gamer", "5999.00");
+        ProdutoListPage lista = criarProdutoNaLista("Notebook Gamer", "5999.00");
 
-        ProdutoDetalhePage detalhe = lista.clicarDetalheNaLinha(0);
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Notebook Gamer");
         String sku = detalhe.getSku();
         assertThat(sku).isNotBlank();
         assertThat(sku.length()).isGreaterThan(3);
@@ -260,9 +280,8 @@ class ProdutoSeleniumTest {
     @Test
     @Order(15)
     void deveResistirASqlInjectionNaInterface() {
-        ProdutoListPage lista = abrirLista();
-        ProdutoFormPage form = lista.clicarNovoProduto();
-        lista = form.preencherESalvar("'; DROP TABLE produtos; --", "100.00");
+        String nomeMalicioso = "'; DROP TABLE produtos; --";
+        ProdutoListPage lista = criarProdutoNaLista(nomeMalicioso, "100.00");
 
         String pageSource = driver.getPageSource();
         assertThat(pageSource).doesNotContain("java.sql");

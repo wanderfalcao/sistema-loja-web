@@ -72,6 +72,42 @@ public class ProdutoListPage extends BasePage {
         return new ProdutoDetalhePage(driver);
     }
 
+    public ProdutoDetalhePage clicarDetalhePorNome(String nome) {
+        aguardarElemento(LINHAS);
+        WebElement link = linhas.stream()
+                .filter(l -> l.getText().contains(nome))
+                .findFirst()
+                .orElseThrow()
+                .findElement(By.cssSelector("a[title='Detalhe']"));
+        clicarComJs(link);
+        return new ProdutoDetalhePage(driver);
+    }
+
+    public ProdutoFormPage clicarEditarPorNome(String nome) {
+        aguardarElemento(LINHAS);
+        WebElement btn = linhas.stream()
+                .filter(l -> l.getText().contains(nome))
+                .findFirst()
+                .orElseThrow()
+                .findElement(By.cssSelector(".btn-editar"));
+        clicarComJs(btn);
+        return new ProdutoFormPage(driver);
+    }
+
+    public ProdutoListPage clicarExcluirPorNome(String nome) {
+        aguardarElemento(LINHAS);
+        WebElement btn = linhas.stream()
+                .filter(l -> l.getText().contains(nome))
+                .findFirst()
+                .orElseThrow()
+                .findElement(By.cssSelector(".btn-excluir"));
+        clicarComJs(btn);
+        wait.until(ExpectedConditions.alertIsPresent());
+        driver.switchTo().alert().accept();
+        wait.until(ExpectedConditions.stalenessOf(btn));
+        return new ProdutoListPage(driver);
+    }
+
     public boolean alertaSucessoVisivel() {
         List<WebElement> alertas = driver.findElements(By.cssSelector(".alert-success"));
         if (alertas.isEmpty()) return false;

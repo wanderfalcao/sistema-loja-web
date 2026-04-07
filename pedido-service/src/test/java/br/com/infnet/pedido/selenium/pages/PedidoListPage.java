@@ -80,6 +80,17 @@ public class PedidoListPage extends BasePage {
         return new PedidoListPage(driver);
     }
 
+    public PedidoListPage clicarDeletarPorId(String id) {
+        By sel = By.cssSelector("form[action*='" + id + "/deletar'] button[type='submit']");
+        List<WebElement> btns = driver.findElements(sel);
+        if (btns.isEmpty()) return this;
+        WebElement btn = btns.get(0);
+        ((JavascriptExecutor) driver).executeScript("window.confirm = function(){ return true; }");
+        clicarComJs(btn);
+        wait.until(ExpectedConditions.stalenessOf(btn));
+        return new PedidoListPage(driver);
+    }
+
     public PedidoListPage clicarDeletarNaLinha(int indice) {
         aguardarElemento(LINHAS);
         WebElement btn = linhas.get(indice)

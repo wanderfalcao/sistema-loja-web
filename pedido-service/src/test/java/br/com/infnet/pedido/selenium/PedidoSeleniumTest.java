@@ -24,6 +24,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,6 +61,9 @@ class PedidoSeleniumTest {
             UUID.randomUUID(), "Produto Teste Selenium", "SEL-001",
             new BigDecimal("50.00"), true, 10);
 
+    /** Rastreia IDs dos pedidos criados em cada teste para cleanup em remote mode. */
+    private final List<String> createdIds = new ArrayList<>();
+
     @BeforeAll
     static void setUpDriver() {
         WebDriverManager.chromedriver().setup();
@@ -77,12 +81,25 @@ class PedidoSeleniumTest {
 
     @BeforeEach
     void setUp() {
+        createdIds.clear();
         if (!REMOTE_MODE) {
             historicoRepository.deleteAll();
             repository.deleteAll();
         }
         when(produtoServiceClient.listarAtivos()).thenReturn(List.of(PRODUTO_MOCK));
         when(produtoServiceClient.buscarProduto(PRODUTO_MOCK.getId())).thenReturn(PRODUTO_MOCK);
+    }
+
+    @AfterEach
+    void limparRemote() {
+        if (!REMOTE_MODE || createdIds.isEmpty()) return;
+        driver.get(baseUrl() + "/pedidos");
+        PedidoListPage lista = new PedidoListPage(driver);
+        for (String id : new ArrayList<>(createdIds)) {
+            try {
+                lista.clicarDeletarPorId(id);
+            } catch (Exception ignored) { /* já deletado pelo próprio teste */ }
+        }
     }
 
     String baseUrl() {
@@ -96,6 +113,10 @@ class PedidoSeleniumTest {
 
     PedidoListPage criarPedidoNaLista(String observacao) {
         abrirLista().clicarNovoPedido().preencherESalvar(observacao);
+        // driver está em /pedidos/{uuid} — capturar ID antes de navegar
+        String url = driver.getCurrentUrl();
+        String id = url.substring(url.lastIndexOf('/') + 1);
+        createdIds.add(id);
         driver.get(baseUrl() + "/pedidos");
         return new PedidoListPage(driver);
     }
@@ -131,6 +152,9 @@ class PedidoSeleniumTest {
     void mensagemSucesso_aposCriar() {
         driver.get(baseUrl() + "/pedidos/novo");
         PedidoDetailPage detalhe = new PedidoFormPage(driver).preencherESalvar("Pedido Sucesso");
+        // capturar ID para cleanup
+        String url = driver.getCurrentUrl();
+        createdIds.add(url.substring(url.lastIndexOf('/') + 1));
         assertThat(detalhe.alertaSucessoVisivel()).isTrue();
     }
 
@@ -160,13 +184,13 @@ class PedidoSeleniumTest {
 
     @Test @Order(9)
     void avancarStatus_pendenteParaProcessando() {
-        PedidoListPage lista = criarPedidoNaLista("Avançar Status Teste").clicarBotaoStatus("PROCESSANDO");
+        criarPedidoNaLista("Avançar Status Teste").clicarBotaoStatus("PROCESSANDO");
         assertThat(driver.getPageSource()).contains("PROCESSANDO");
     }
 
     @Test @Order(10)
     void contestarPedidoConcluido_funciona() {
-        PedidoListPage lista = criarPedidoNaLista("Para Contestar")
+        criarPedidoNaLista("Para Contestar")
                 .clicarBotaoStatus("PROCESSANDO")
                 .clicarBotaoStatus("CONCLUIDO")
                 .clicarContestaNaLinha("Produto recebido com defeito");
@@ -183,7 +207,11 @@ class PedidoSeleniumTest {
     void removerPedido_decrementaContagem() {
         PedidoListPage lista = criarPedidoNaLista("Para Remover");
         int totalAntes = lista.contarPedidos();
-        assertThat(lista.clicarDeletarNaLinha(0).contarPedidos()).isLessThan(totalAntes);
+        String idRemovido = createdIds.isEmpty() ? null : createdIds.get(createdIds.size() - 1);
+        lista = lista.clicarDeletarNaLinha(0);
+        // já deletado pelo teste — remover do tracking para evitar tentativa dupla
+        if (idRemovido != null) createdIds.remove(idRemovido);
+        assertThat(lista.contarPedidos()).isLessThan(totalAntes);
     }
 
     @Test @Order(13)
