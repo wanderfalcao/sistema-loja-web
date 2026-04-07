@@ -155,7 +155,8 @@ jobs:
           region:  ${{ env.GCP_REGION }}
           image:   ${{ needs.build-and-push.outputs.produto-ar-image }}
           env_vars: |
-            SPRING_PROFILES_ACTIVE=prod,seed
+            SPRING_PROFILES_ACTIVE=prod
+            APP_SEED_ENABLED=true
             SPRING_DATASOURCE_URL=${{ secrets.PRODUTO_DB_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
             SPRING_DATASOURCE_PASSWORD=${{ secrets.PRODUTO_DB_PASSWORD }}
@@ -177,7 +178,8 @@ jobs:
           region:  ${{ env.GCP_REGION }}
           image:   ${{ needs.build-and-push.outputs.pedido-ar-image }}
           env_vars: |
-            SPRING_PROFILES_ACTIVE=prod,seed
+            SPRING_PROFILES_ACTIVE=prod
+            APP_SEED_ENABLED=true
             SPRING_DATASOURCE_URL=${{ secrets.PEDIDO_DB_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
             SPRING_DATASOURCE_PASSWORD=${{ secrets.PEDIDO_DB_PASSWORD }}
