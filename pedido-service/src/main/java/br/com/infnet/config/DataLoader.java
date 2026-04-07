@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@Profile("!prod")
+@Profile({"dev", "seed"})
 @RequiredArgsConstructor
 public class DataLoader implements ApplicationRunner {
 
