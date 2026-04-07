@@ -202,6 +202,9 @@ jobs:
             'until curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
           echo "::notice title=Health Check Dev::Ambos os serviços respondem no Cloud Run dev"
 
+      - uses: actions/checkout@v4
+        if: steps.gcp-auth.outcome == 'success'
+
       - uses: actions/setup-java@v4
         if: steps.gcp-auth.outcome == 'success'
         with:
@@ -313,6 +316,9 @@ jobs:
             'until curl -sf "${{ steps.deploy-produto.outputs.url }}/actuator/health" && \
                    curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
           echo "::notice title=Health Check Test::Todos os serviços em test respondem"
+
+      - uses: actions/checkout@v4
+        if: steps.gcp-auth.outcome == 'success'
 
       - uses: actions/setup-java@v4
         if: steps.gcp-auth.outcome == 'success'
@@ -427,6 +433,9 @@ jobs:
             'until curl -sf "${{ steps.deploy-produto.outputs.url }}/actuator/health" && \
                    curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
           echo "::notice title=Health Check Prod::Todos os serviços em produção respondem"
+
+      - uses: actions/checkout@v4
+        if: steps.gcp-auth.outcome == 'success'
 
       - uses: actions/setup-java@v4
         if: steps.gcp-auth.outcome == 'success'
