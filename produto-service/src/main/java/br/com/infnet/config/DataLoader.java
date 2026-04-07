@@ -38,7 +38,7 @@ public class DataLoader implements ApplicationRunner {
             "MON-LG-4K-27", new BigDecimal("2499.90"), 8, 2,
             CategoriaProduto.MONITORES,
             "Display IPS 4K com USB-C e HDR10. Ideal para produtores de conteúdo e designers.",
-            "https://assets.lojasys.com/monitores/lg-27uk850.jpg"
+            null
         );
         // promoção com datas — 15% dentro do limite de 30%
         monitor4k.ativarPromocao(
@@ -62,7 +62,7 @@ public class DataLoader implements ApplicationRunner {
             "TEC-HX-MECH-RGB", new BigDecimal("349.00"), 15, 3,
             CategoriaProduto.PERIFERICOS,
             "Switches Cherry MX Red, NKRO completo e iluminação RGB por tecla.",
-            "https://assets.lojasys.com/perifericos/hyperx-alloy.jpg"
+            null
         ));
 
         Produto mouseGamer = produto(
@@ -70,7 +70,7 @@ public class DataLoader implements ApplicationRunner {
             "MOU-RZR-16K-V3", new BigDecimal("299.90"), 20, 5,
             CategoriaProduto.PERIFERICOS,
             "Sensor Focus Pro 30K, formato ergonômico e apenas 59g. Referência em FPS.",
-            "https://assets.lojasys.com/perifericos/razer-deathadder-v3.jpg"
+            null
         );
         // promoção sem datas — válida indefinidamente — 20% dentro de 40%
         mouseGamer.ativarPromocao(new BigDecimal("20"), null, null);
@@ -81,7 +81,7 @@ public class DataLoader implements ApplicationRunner {
             "WEB-LOG-C920", new BigDecimal("149.90"), 30, 5,
             CategoriaProduto.PERIFERICOS,
             "Resolução Full HD a 30fps com autofoco e microfone estéreo integrado.",
-            null
+            "https://resource.logitech.com/content/dam/logitech/en/products/webcams/c920/gallery/c920-gallery-1.png"
         ));
 
         // ── ARMAZENAMENTO (desconto máximo 25%) ──────────────────────────────
@@ -90,7 +90,7 @@ public class DataLoader implements ApplicationRunner {
             "SSD-SAM-1TB-990", new BigDecimal("449.00"), 18, 3,
             CategoriaProduto.ARMAZENAMENTO,
             "Velocidade de leitura sequencial de 7.450 MB/s. Interface PCIe 4.0 x4.",
-            "https://assets.lojasys.com/armazenamento/samsung-990pro.jpg"
+            null
         );
         // promoção com datas — 10% dentro do limite de 25%
         ssd.ativarPromocao(
@@ -114,7 +114,7 @@ public class DataLoader implements ApplicationRunner {
             "RAM-KNG-32G-DDR5", new BigDecimal("589.90"), 10, 2,
             CategoriaProduto.COMPONENTES,
             "Kit 2x16GB DDR5-5200MHz CL40 com XMP 3.0 e dissipador de alumínio.",
-            "https://assets.lojasys.com/componentes/kingston-fury-beast.jpg"
+            null
         ));
 
         Produto rtx = produto(
@@ -122,7 +122,7 @@ public class DataLoader implements ApplicationRunner {
             "VGA-ASUS-RTX4060", new BigDecimal("3799.00"), 4, 1,
             CategoriaProduto.COMPONENTES,
             "8GB GDDR6, DLSS 3, Ray Tracing. Ideal para 1080p e 1440p ultra.",
-            "https://assets.lojasys.com/componentes/asus-rtx4060.jpg"
+            null
         );
         // promoção sem datas — 15% dentro do limite de 20%
         rtx.ativarPromocao(new BigDecimal("15"), null, null);
@@ -142,7 +142,7 @@ public class DataLoader implements ApplicationRunner {
             "HST-STS-7PLUS", new BigDecimal("599.00"), 12, 2,
             CategoriaProduto.AUDIO_VIDEO,
             "Sem fio 2.4GHz, bateria de 30h, microfone ClearCast retrátil e certificação Discord.",
-            "https://assets.lojasys.com/audio/steelseries-arctis7plus.jpg"
+            null
         );
         // promoção com datas — 25% dentro do limite de 35%
         headset.ativarPromocao(
