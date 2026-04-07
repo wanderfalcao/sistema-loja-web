@@ -126,8 +126,24 @@ jobs:
         if: always()
         run: |
           echo "## Testes Selenium E2E" >> $GITHUB_STEP_SUMMARY
-          echo "| Serviço         | Grupo     | Resultado              |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------------|-----------|------------------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| produto-service | selenium  | ver artefato acima     |" >> $GITHUB_STEP_SUMMARY
-          echo "| pedido-service  | selenium  | ver artefato acima     |" >> $GITHUB_STEP_SUMMARY
-          echo "::notice title=Selenium::Testes E2E concluídos — verifique o artefato selenium-resultados"
+          echo "| Serviço         | Passaram | Falharam | Erros | Ignorados |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------------|----------|----------|-------|-----------|" >> $GITHUB_STEP_SUMMARY
+          for service in produto-service pedido-service; do
+            dir="$service/target/surefire-reports"
+            if ls "$dir"/TEST-*.xml 1>/dev/null 2>&1; then
+              tests=$(grep -h 'tests="' "$dir"/TEST-*.xml | grep -oP 'tests="\K[0-9]+' | awk '{s+=$1} END {print s+0}')
+              failures=$(grep -h 'failures="' "$dir"/TEST-*.xml | grep -oP 'failures="\K[0-9]+' | awk '{s+=$1} END {print s+0}')
+              errors=$(grep -h 'errors="' "$dir"/TEST-*.xml | grep -oP 'errors="\K[0-9]+' | awk '{s+=$1} END {print s+0}')
+              skipped=$(grep -h 'skipped="' "$dir"/TEST-*.xml | grep -oP 'skipped="\K[0-9]+' | awk '{s+=$1} END {print s+0}')
+              passed=$((tests - failures - errors - skipped))
+              echo "| $service | $passed | $failures | $errors | $skipped |" >> $GITHUB_STEP_SUMMARY
+              if [ "$failures" -gt 0 ] || [ "$errors" -gt 0 ]; then
+                echo "::warning title=Selenium $service::${failures} falha(s) e ${errors} erro(s) nos testes E2E"
+              else
+                echo "::notice title=Selenium $service::${passed} testes E2E passaram"
+              fi
+            else
+              echo "| $service | — | — | — | sem relatório |" >> $GITHUB_STEP_SUMMARY
+              echo "::warning title=Selenium $service::Nenhum relatório XML encontrado"
+            fi
+          done
