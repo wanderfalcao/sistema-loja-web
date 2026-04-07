@@ -32,6 +32,8 @@ public class ProdutoListPage extends BasePage {
     }
 
     public int contarProdutos() {
+        // A tabela não é renderizada quando não há produtos (template mostra mensagem vazia)
+        if (driver.findElements(By.id("tabela-produtos")).isEmpty()) return 0;
         aguardarElemento(By.id("tabela-produtos"));
         return (int) linhas.stream()
                 .filter(l -> !l.findElements(By.cssSelector(".btn-excluir")).isEmpty())

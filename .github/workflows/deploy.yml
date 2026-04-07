@@ -231,7 +231,6 @@ jobs:
             -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
             -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
             -B
-        continue-on-error: true
 
       - name: Upload resultados Selenium — dev
         uses: actions/upload-artifact@v4
@@ -354,7 +353,6 @@ jobs:
             -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
             -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
             -B
-        continue-on-error: true
 
       - name: Upload resultados Selenium — test
         uses: actions/upload-artifact@v4
@@ -479,7 +477,6 @@ jobs:
             -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
             -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
             -B
-        continue-on-error: true
 
       - name: Upload resultados Selenium — prod
         uses: actions/upload-artifact@v4
