@@ -3,6 +3,7 @@ package br.com.infnet.pedido.selenium;
 import br.com.infnet.client.ProdutoInfo;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
+import br.com.infnet.pedido.repository.StatusHistoricoRepository;
 import br.com.infnet.pedido.selenium.pages.PedidoDetailPage;
 import br.com.infnet.pedido.selenium.pages.PedidoFormPage;
 import br.com.infnet.pedido.selenium.pages.PedidoListPage;
@@ -43,6 +44,7 @@ class PedidoSeleniumTest {
 
     @LocalServerPort int port;
     @Autowired PedidoRepository repository;
+    @Autowired StatusHistoricoRepository historicoRepository;
     @MockBean ProdutoServiceClient produtoServiceClient;
 
     static WebDriver driver;
@@ -69,6 +71,7 @@ class PedidoSeleniumTest {
 
     @BeforeEach
     void setUp() {
+        historicoRepository.deleteAll();
         repository.deleteAll();
         when(produtoServiceClient.listarAtivos()).thenReturn(List.of(PRODUTO_MOCK));
         when(produtoServiceClient.buscarProduto(PRODUTO_MOCK.getId())).thenReturn(PRODUTO_MOCK);
