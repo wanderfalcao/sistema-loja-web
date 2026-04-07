@@ -24,7 +24,7 @@ public class PedidoFormPage extends BasePage {
     }
 
     /** Modo criação: qty=1 no primeiro produto, preenche observacao, submete → detalhe. */
-    public PedidoDetailPage preencherESalvar(String observacao) {
+    public PedidoDetalhePage preencherESalvar(String observacao) {
         aguardarElemento(By.id("formNovoPedido"));
         List<WebElement> qtyInputs = driver.findElements(By.name("quantidades"));
         if (!qtyInputs.isEmpty()) {
@@ -37,7 +37,7 @@ public class PedidoFormPage extends BasePage {
         WebElement btn = driver.findElement(By.cssSelector("button[type='submit']"));
         clicarComJs(btn);
         wait.until(ExpectedConditions.stalenessOf(btn));
-        return new PedidoDetailPage(driver);
+        return new PedidoDetalhePage(driver);
     }
 
     /** Modo criação: submete sem selecionar nenhum produto → redireciona para lista com erro. */

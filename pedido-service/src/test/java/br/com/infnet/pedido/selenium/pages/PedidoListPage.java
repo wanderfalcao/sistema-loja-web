@@ -41,12 +41,12 @@ public class PedidoListPage extends BasePage {
                 .count();
     }
 
-    public PedidoDetailPage clicarDetalheNaLinha(int indice) {
+    public PedidoDetalhePage clicarDetalheNaLinha(int indice) {
         aguardarElemento(LINHAS);
         WebElement link = linhas.get(indice)
                 .findElement(By.cssSelector("a[title='Ver detalhes'], a[href*='/pedidos/']:not([href*='editar'])"));
         clicarComJs(link);
-        return new PedidoDetailPage(driver);
+        return new PedidoDetalhePage(driver);
     }
 
     public PedidoFormPage clicarEditarNaLinha(int indice) {

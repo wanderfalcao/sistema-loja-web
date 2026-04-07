@@ -8,7 +8,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.util.List;
 
-public class PedidoDetailPage extends BasePage {
+public class PedidoDetalhePage extends BasePage {
 
     @FindBy(css = ".sbadge")
     private WebElement badgeStatus;
@@ -16,7 +16,7 @@ public class PedidoDetailPage extends BasePage {
     @FindBy(css = "h1.page-title")
     private WebElement titulo;
 
-    public PedidoDetailPage(WebDriver driver) {
+    public PedidoDetalhePage(WebDriver driver) {
         super(driver);
     }
 
@@ -60,7 +60,7 @@ public class PedidoDetailPage extends BasePage {
         return !driver.findElements(By.cssSelector("form[action$='/itens']")).isEmpty();
     }
 
-    public PedidoDetailPage adicionarItem(String nomeProduto, String precoUnitario, int quantidade) {
+    public PedidoDetalhePage adicionarItem(String nomeProduto, String precoUnitario, int quantidade) {
         aguardarElemento(By.name("nomeProduto"));
         driver.findElement(By.name("nomeProduto")).sendKeys(nomeProduto);
         driver.findElement(By.name("precoUnitario")).clear();
@@ -71,7 +71,7 @@ public class PedidoDetailPage extends BasePage {
                 By.cssSelector("form[action$='/itens'] button[type='submit']"));
         clicarComJs(btnAdicionar);
         wait.until(ExpectedConditions.stalenessOf(btnAdicionar));
-        return new PedidoDetailPage(driver);
+        return new PedidoDetalhePage(driver);
     }
 
     public int contarItens() {

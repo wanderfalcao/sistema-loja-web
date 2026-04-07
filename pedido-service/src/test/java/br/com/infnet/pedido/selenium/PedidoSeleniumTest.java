@@ -4,7 +4,7 @@ import br.com.infnet.client.ProdutoInfo;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
 import br.com.infnet.pedido.repository.StatusHistoricoRepository;
-import br.com.infnet.pedido.selenium.pages.PedidoDetailPage;
+import br.com.infnet.pedido.selenium.pages.PedidoDetalhePage;
 import br.com.infnet.pedido.selenium.pages.PedidoFormPage;
 import br.com.infnet.pedido.selenium.pages.PedidoListPage;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -151,7 +151,7 @@ class PedidoSeleniumTest {
     @Test @Order(5)
     void mensagemSucesso_aposCriar() {
         driver.get(baseUrl() + "/pedidos/novo");
-        PedidoDetailPage detalhe = new PedidoFormPage(driver).preencherESalvar("Pedido Sucesso");
+        PedidoDetalhePage detalhe = new PedidoFormPage(driver).preencherESalvar("Pedido Sucesso");
         // capturar ID para cleanup
         String url = driver.getCurrentUrl();
         createdIds.add(url.substring(url.lastIndexOf('/') + 1));
@@ -246,7 +246,7 @@ class PedidoSeleniumTest {
         driver.findElement(By.cssSelector(
                 "#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']:not([href*='editar'])")).click();
         wait.until(ExpectedConditions.urlMatches(".*/pedidos/[0-9a-f\\-]+$"));
-        assertThat(new PedidoDetailPage(driver).getStatus()).containsIgnoringCase("PENDENTE");
+        assertThat(new PedidoDetalhePage(driver).getStatus()).containsIgnoringCase("PENDENTE");
     }
 
     @Test @Order(17)
@@ -255,7 +255,7 @@ class PedidoSeleniumTest {
         driver.findElement(By.cssSelector(
                 "#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']:not([href*='editar'])")).click();
         wait.until(ExpectedConditions.urlMatches(".*/pedidos/[0-9a-f\\-]+$"));
-        PedidoDetailPage detalhe = new PedidoDetailPage(driver);
+        PedidoDetalhePage detalhe = new PedidoDetalhePage(driver);
         assertThat(detalhe.formularioAdicionarItemVisivel()).isTrue();
         assertThat(detalhe.adicionarItem("Produto Manual", "25.00", 2).contarItens()).isGreaterThan(0);
     }
