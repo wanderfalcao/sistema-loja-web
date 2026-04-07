@@ -8,7 +8,7 @@
         <span>LojaSys</span>
     </a>
     <nav class="sidebar-nav">
-        <a href="/produtos"
+        <a th:href="${produtoBaseUrl + '/produtos'}"
            th:classappend="${activePage == 'produtos'} ? ' active'"
            class="sidebar-nav-item">
             <i class="bi bi-box-seam"></i>

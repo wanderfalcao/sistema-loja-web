@@ -182,6 +182,7 @@ jobs:
             SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
             SPRING_DATASOURCE_PASSWORD=${{ secrets.PEDIDO_DB_PASSWORD }}
             PRODUTO_SERVICE_URL=${{ steps.deploy-produto.outputs.url }}
+            APP_PRODUTO_BASE_URL=${{ steps.deploy-produto.outputs.url }}
           flags: >-
             --allow-unauthenticated
             --port=8082
@@ -190,6 +191,13 @@ jobs:
             --min-instances=0
             --max-instances=2
             --timeout=60s
+
+      - name: Atualizar produto-service com URL do pedido-service (dev)
+        if: steps.gcp-auth.outcome == 'success'
+        run: |
+          gcloud run services update produto-service-dev \
+            --update-env-vars APP_PEDIDO_BASE_URL=${{ steps.deploy-pedido.outputs.url }} \
+            --region ${{ env.GCP_REGION }} --quiet
 
       - name: Health check (dev)
         if: steps.gcp-auth.outcome == 'success'
@@ -300,6 +308,7 @@ jobs:
             SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
             SPRING_DATASOURCE_PASSWORD=${{ secrets.PEDIDO_DB_PASSWORD }}
             PRODUTO_SERVICE_URL=${{ steps.deploy-produto.outputs.url }}
+            APP_PRODUTO_BASE_URL=${{ steps.deploy-produto.outputs.url }}
           flags: >-
             --allow-unauthenticated
             --port=8082
@@ -308,6 +317,13 @@ jobs:
             --min-instances=0
             --max-instances=3
             --timeout=60s
+
+      - name: Atualizar produto-service com URL do pedido-service (test)
+        if: steps.gcp-auth.outcome == 'success'
+        run: |
+          gcloud run services update produto-service-test \
+            --update-env-vars APP_PEDIDO_BASE_URL=${{ steps.deploy-pedido.outputs.url }} \
+            --region ${{ env.GCP_REGION }} --quiet
 
       - name: Health check (test)
         if: steps.gcp-auth.outcome == 'success'
@@ -417,6 +433,7 @@ jobs:
             SPRING_DATASOURCE_USERNAME=${{ secrets.POSTGRES_USER }}
             SPRING_DATASOURCE_PASSWORD=${{ secrets.PEDIDO_DB_PASSWORD }}
             PRODUTO_SERVICE_URL=${{ steps.deploy-produto.outputs.url }}
+            APP_PRODUTO_BASE_URL=${{ steps.deploy-produto.outputs.url }}
           flags: >-
             --allow-unauthenticated
             --port=8082
@@ -425,6 +442,13 @@ jobs:
             --min-instances=1
             --max-instances=10
             --timeout=60s
+
+      - name: Atualizar produto-service com URL do pedido-service (prod)
+        if: steps.gcp-auth.outcome == 'success'
+        run: |
+          gcloud run services update produto-service \
+            --update-env-vars APP_PEDIDO_BASE_URL=${{ steps.deploy-pedido.outputs.url }} \
+            --region ${{ env.GCP_REGION }} --quiet
 
       - name: Health check (prod)
         if: steps.gcp-auth.outcome == 'success'
