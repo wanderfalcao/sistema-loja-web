@@ -17,6 +17,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,6 +35,13 @@ class ProdutoSeleniumTest {
     private static final boolean REMOTE_MODE =
             REMOTE_URL != null && !REMOTE_URL.isBlank();
 
+    /**
+     * Sufixo único por execução da suite: " Teste-{6 chars}".
+     * Garante que nomes de produtos criados pelos testes nunca colidem com dados de seed
+     * nem com runs anteriores, eliminando falhas por constraint unique.
+     */
+    private static final String SUFFIX = " Teste-" + UUID.randomUUID().toString().substring(0, 6);
+
     @LocalServerPort
     private int porta;
 
@@ -49,16 +57,6 @@ class ProdutoSeleniumTest {
         return REMOTE_MODE ? REMOTE_URL : "http://localhost:" + porta;
     }
 
-    /** Nomes de produtos criados pelos testes — usados para limpeza inicial em remote mode. */
-    private static final List<String> ALL_TEST_NOMES = List.of(
-            "Monitor 4K", "Teclado Mecanico", "Mouse Gamer", "Webcam HD",
-            "Produto Original", "Produto Editado", "Produto para Excluir", "Produto Cancelado",
-            "Teclado Gamer", "Mouse Sem Fio", "Headset Pro",
-            "Monitor Full HD", "Produto Detalhe Teste", "Produto Promo",
-            "Smartphone Premium", "Notebook Gamer",
-            "'; DROP TABLE produtos; --"
-    );
-
     @BeforeAll
     static void setUpDriver() {
         WebDriverManager.chromedriver().setup();
@@ -71,16 +69,6 @@ class ProdutoSeleniumTest {
                 "--window-size=1280,800"
         );
         driver = new ChromeDriver(options);
-        if (REMOTE_MODE) {
-            // Remove lixo de runs anteriores antes de qualquer teste executar.
-            driver.get(REMOTE_URL + "/produtos?size=200");
-            for (String nome : ALL_TEST_NOMES) {
-                try {
-                    new ProdutoListPage(driver).clicarExcluirPorNome(nome);
-                    driver.get(REMOTE_URL + "/produtos?size=200");
-                } catch (Exception ignored) { /* produto não existe — ok */ }
-            }
-        }
     }
 
     @AfterAll
@@ -133,7 +121,7 @@ class ProdutoSeleniumTest {
     void deveCadastrarProdutoEExibirNaLista() {
         ProdutoListPage lista = abrirLista();
         int antes = lista.contarProdutos();
-        lista = criarProdutoNaLista("Monitor 4K", "2500.00");
+        lista = criarProdutoNaLista("Monitor 4K" + SUFFIX, "2500.00");
 
         assertThat(lista.contarProdutos()).isEqualTo(antes + 1);
     }
@@ -144,9 +132,9 @@ class ProdutoSeleniumTest {
         ProdutoListPage lista = abrirLista();
         int antes = lista.contarProdutos();
 
-        criarProdutoNaLista("Teclado Mecanico", "350.00");
-        criarProdutoNaLista("Mouse Gamer", "199.90");
-        lista = criarProdutoNaLista("Webcam HD", "89.90");
+        criarProdutoNaLista("Teclado Mecanico" + SUFFIX, "350.00");
+        criarProdutoNaLista("Mouse Gamer" + SUFFIX, "199.90");
+        lista = criarProdutoNaLista("Webcam HD" + SUFFIX, "89.90");
 
         assertThat(lista.contarProdutos()).isEqualTo(antes + 3);
     }
@@ -154,27 +142,27 @@ class ProdutoSeleniumTest {
     @Test
     @Order(3)
     void deveEditarProdutoEExibirMensagemDeSucesso() {
-        ProdutoListPage lista = criarProdutoNaLista("Produto Original", "100.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Original" + SUFFIX, "100.00");
 
-        ProdutoFormPage form = lista.clicarEditarPorNome("Produto Original");
-        assertThat(form.getValorNome()).isEqualTo("Produto Original");
+        ProdutoFormPage form = lista.clicarEditarPorNome("Produto Original" + SUFFIX);
+        assertThat(form.getValorNome()).isEqualTo("Produto Original" + SUFFIX);
 
-        lista = form.preencherESalvar("Produto Editado", "200.00");
+        lista = form.preencherESalvar("Produto Editado" + SUFFIX, "200.00");
         // rastrear nome novo para cleanup
-        createdNomes.remove("Produto Original");
-        createdNomes.add("Produto Editado");
+        createdNomes.remove("Produto Original" + SUFFIX);
+        createdNomes.add("Produto Editado" + SUFFIX);
         assertThat(lista.alertaSucessoVisivel()).isTrue();
     }
 
     @Test
     @Order(4)
     void deveExcluirProdutoEDecrementarContagem() {
-        ProdutoListPage lista = criarProdutoNaLista("Produto para Excluir", "10.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto para Excluir" + SUFFIX, "10.00");
         int antes = lista.contarProdutos();
 
-        lista = lista.clicarExcluirPorNome("Produto para Excluir");
+        lista = lista.clicarExcluirPorNome("Produto para Excluir" + SUFFIX);
         // já deletado pelo teste — remover do tracking
-        createdNomes.remove("Produto para Excluir");
+        createdNomes.remove("Produto para Excluir" + SUFFIX);
 
         assertThat(lista.contarProdutos()).isLessThan(antes);
     }
@@ -207,7 +195,7 @@ class ProdutoSeleniumTest {
         ProdutoListPage lista = abrirLista();
         ProdutoFormPage form = lista.clicarNovoProduto();
 
-        form = form.preencherESubmeterComErro("Produto Valido", "-5.00");
+        form = form.preencherESubmeterComErro("Produto Valido" + SUFFIX, "-5.00");
 
         assertThat(form.erroEstaVisivel()).isTrue();
         assertThat(form.obterMensagemDeErro()).contains("Preco deve ser maior que zero");
@@ -223,7 +211,7 @@ class ProdutoSeleniumTest {
     void deveCadastrarProdutosParametrizados(String nome, String preco) {
         ProdutoListPage lista = abrirLista();
         int antes = lista.contarProdutos();
-        lista = criarProdutoNaLista(nome.trim(), preco.trim());
+        lista = criarProdutoNaLista(nome.trim() + SUFFIX, preco.trim());
 
         assertThat(lista.contarProdutos()).isEqualTo(antes + 1);
     }
@@ -231,7 +219,7 @@ class ProdutoSeleniumTest {
     @Test
     @Order(9)
     void deveManterProdutoAoCancelarConfirmacaoDeExclusao() {
-        ProdutoListPage lista = criarProdutoNaLista("Produto Cancelado", "50.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Cancelado" + SUFFIX, "50.00");
         int antes = lista.contarProdutos();
 
         lista = lista.cancelarExcluirNaLinha(0);
@@ -244,32 +232,32 @@ class ProdutoSeleniumTest {
     void devePersistirDescricaoEEstoqueAoCadastrar() {
         ProdutoListPage lista = abrirLista();
         int antes = lista.contarProdutos();
-        lista = criarProdutoCompleto("Monitor Full HD", "1200.00", "Monitor de alta resolução", "15");
+        lista = criarProdutoCompleto("Monitor Full HD" + SUFFIX, "1200.00", "Monitor de alta resolucao", "15");
 
         assertThat(lista.contarProdutos()).isEqualTo(antes + 1);
-        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Monitor Full HD");
-        assertThat(detalhe.getNome()).isEqualTo("Monitor Full HD");
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Monitor Full HD" + SUFFIX);
+        assertThat(detalhe.getNome()).isEqualTo("Monitor Full HD" + SUFFIX);
         assertThat(detalhe.getEstoque()).isEqualTo("15");
-        assertThat(detalhe.getDescricao()).contains("alta resolução");
+        assertThat(detalhe.getDescricao()).contains("alta resolucao");
     }
 
     @Test
     @Order(11)
     void deveNavegaParaDetalheProduto() {
-        ProdutoListPage lista = criarProdutoNaLista("Produto Detalhe Teste", "299.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Detalhe" + SUFFIX, "299.00");
 
-        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Produto Detalhe Teste");
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Produto Detalhe" + SUFFIX);
 
-        assertThat(detalhe.getNome()).isEqualTo("Produto Detalhe Teste");
+        assertThat(detalhe.getNome()).isEqualTo("Produto Detalhe" + SUFFIX);
         assertThat(driver.getCurrentUrl()).contains("/produtos/");
     }
 
     @Test
     @Order(12)
     void deveExibirPreviewCorretoAoDigitarPercentualDePromocao() {
-        ProdutoListPage lista = criarProdutoNaLista("Produto Promo", "1000.00");
+        ProdutoListPage lista = criarProdutoNaLista("Produto Promo" + SUFFIX, "1000.00");
 
-        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Produto Promo");
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Produto Promo" + SUFFIX);
         detalhe.ativarFormPromo();
         String preview = detalhe.preencherPromocaoEObterPreview("10");
 
@@ -279,19 +267,19 @@ class ProdutoSeleniumTest {
     @Test
     @Order(13)
     void deveCadastrarProdutoComCategoriaEVerificarNoDetalhe() {
-        ProdutoListPage lista = criarProdutoCompleto("Smartphone Premium", "3500.00", "Celular top de linha", "20");
+        ProdutoListPage lista = criarProdutoCompleto("Smartphone Premium" + SUFFIX, "3500.00", "Celular top de linha", "20");
 
         assertThat(lista.contarProdutos()).isGreaterThan(0);
-        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Smartphone Premium");
-        assertThat(detalhe.getNome()).isEqualTo("Smartphone Premium");
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Smartphone Premium" + SUFFIX);
+        assertThat(detalhe.getNome()).isEqualTo("Smartphone Premium" + SUFFIX);
     }
 
     @Test
     @Order(14)
     void deveGerarSkuAutomaticoAoCadastrar() {
-        ProdutoListPage lista = criarProdutoNaLista("Notebook Gamer", "5999.00");
+        ProdutoListPage lista = criarProdutoNaLista("Notebook Gamer" + SUFFIX, "5999.00");
 
-        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Notebook Gamer");
+        ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Notebook Gamer" + SUFFIX);
         String sku = detalhe.getSku();
         assertThat(sku).isNotBlank();
         assertThat(sku.length()).isGreaterThan(3);
