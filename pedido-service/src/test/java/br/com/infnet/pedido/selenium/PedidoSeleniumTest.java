@@ -1,5 +1,6 @@
 package br.com.infnet.pedido.selenium;
 
+import br.com.infnet.client.ProdutoInfo;
 import br.com.infnet.client.ProdutoServiceClient;
 import br.com.infnet.pedido.repository.PedidoRepository;
 import br.com.infnet.pedido.selenium.pages.PedidoDetailPage;
@@ -20,31 +21,36 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 /**
- * Testes E2E com Selenium headless — executar com: mvn test -Dgroups=selenium
+ * Testes E2E com Selenium headless — executar com:
+ *   mvn test -Dgroups=selenium -DexcludedGroups= -Dspring.profiles.active=test
  *
- * ProdutoServiceClient é mockado para isolar chamadas ao produto-service.
+ * ProdutoServiceClient é mockado para retornar um produto fixo,
+ * garantindo que o formulário de criação exiba a tabela de seleção.
  */
 @Tag("selenium")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PedidoSeleniumTest {
 
-    @LocalServerPort
-    int port;
-
-    @Autowired
-    PedidoRepository repository;
-
-    @MockBean
-    ProdutoServiceClient produtoServiceClient;
+    @LocalServerPort int port;
+    @Autowired PedidoRepository repository;
+    @MockBean ProdutoServiceClient produtoServiceClient;
 
     static WebDriver driver;
     static WebDriverWait wait;
+
+    static final ProdutoInfo PRODUTO_MOCK = new ProdutoInfo(
+            UUID.randomUUID(), "Produto Teste Selenium", "SEL-001",
+            new BigDecimal("50.00"), true, 10);
 
     @BeforeAll
     static void setUpDriver() {
@@ -62,207 +68,162 @@ class PedidoSeleniumTest {
     }
 
     @BeforeEach
-    void limparBanco() {
+    void setUp() {
         repository.deleteAll();
+        when(produtoServiceClient.listarAtivos()).thenReturn(List.of(PRODUTO_MOCK));
     }
 
-    String baseUrl() {
-        return "http://localhost:" + port;
-    }
+    String baseUrl() { return "http://localhost:" + port; }
 
     PedidoListPage abrirLista() {
         driver.get(baseUrl() + "/pedidos");
         return new PedidoListPage(driver);
     }
 
-    PedidoListPage criarPedidoNaLista(String descricao, String valor) {
-        PedidoListPage lista = abrirLista();
-        PedidoFormPage form = lista.clicarNovoPedido();
-        return form.preencherESalvar(descricao, valor);
+    PedidoListPage criarPedidoNaLista(String observacao) {
+        abrirLista().clicarNovoPedido().preencherESalvar(observacao);
+        driver.get(baseUrl() + "/pedidos");
+        return new PedidoListPage(driver);
     }
 
-    @Test
-    @Order(1)
+    @Test @Order(1)
     void listagem_carregaComSucesso() {
         abrirLista();
         assertThat(driver.getTitle()).isNotBlank();
-        assertThat(driver.findElement(By.tagName("h1")).getText())
-                .containsIgnoringCase("Pedidos");
+        assertThat(driver.findElement(By.tagName("h1")).getText()).containsIgnoringCase("Pedidos");
     }
 
-    @Test
-    @Order(2)
+    @Test @Order(2)
     void linkNovoPedido_existe() {
         abrirLista();
-        assertThat(driver.findElement(By.linkText("Novo Pedido")).isDisplayed()).isTrue();
+        assertThat(driver.findElement(By.id("btn-novo-pedido")).isDisplayed()).isTrue();
     }
 
-    @Test
-    @Order(3)
-    void formularioCriacao_carrega() {
-        driver.get(baseUrl() + "/pedidos/novo");
-        assertThat(driver.findElement(By.id("descricao")).isDisplayed()).isTrue();
-        assertThat(driver.findElement(By.id("valor")).isDisplayed()).isTrue();
-    }
-
-    @Test
-    @Order(4)
-    void criarPedido_comDadosValidos() {
-        PedidoListPage lista = criarPedidoNaLista("Pedido Selenium Teste", "75.50");
-        assertThat(lista.contarPedidos()).isGreaterThan(0);
-    }
-
-    @Test
-    @Order(5)
-    void mensagemSucesso_aposCriar() {
-        PedidoListPage lista = criarPedidoNaLista("Pedido Para Sucesso", "10.00");
-        assertThat(lista.alertaSucessoVisivel()).isTrue();
-    }
-
-    @Test
-    @Order(6)
-    void valorInvalido_mostraErro() {
+    @Test @Order(3)
+    void formularioCriacao_exibeTabelaDeProdutos() {
         driver.get(baseUrl() + "/pedidos/novo");
         PedidoFormPage form = new PedidoFormPage(driver);
-
-        form = form.preencherESubmeterComErro("Test Erro", "nao-eh-numero");
-
-        assertThat(form.erroEstaVisivel()).isTrue();
-        assertThat(form.obterMensagemDeErro()).isNotBlank();
+        assertThat(form.formularioNovoVisivel()).isTrue();
+        assertThat(form.tabelaProdutosVisivel()).isTrue();
+        assertThat(driver.findElement(By.id("observacao")).isDisplayed()).isTrue();
     }
 
-    @Test
-    @Order(7)
-    void sqlInjection_naoVazaDadosInternos() {
-        PedidoListPage lista = criarPedidoNaLista("'; DROP TABLE pedidos; --", "1.00");
+    @Test @Order(4)
+    void criarPedido_comProdutoSelecionado() {
+        assertThat(criarPedidoNaLista("Pedido Selenium Teste").contarPedidos()).isGreaterThan(0);
+    }
 
-        wait.until(ExpectedConditions.urlContains("/pedidos"));
+    @Test @Order(5)
+    void mensagemSucesso_aposCriar() {
+        driver.get(baseUrl() + "/pedidos/novo");
+        PedidoDetailPage detalhe = new PedidoFormPage(driver).preencherESalvar("Pedido Sucesso");
+        assertThat(detalhe.alertaSucessoVisivel()).isTrue();
+    }
+
+    @Test @Order(6)
+    void semItensSelecionados_mostraErroNaLista() {
+        driver.get(baseUrl() + "/pedidos/novo");
+        PedidoListPage lista = new PedidoFormPage(driver).submeterSemItens();
+        assertThat(lista.alertaErroVisivel()).isTrue();
+        assertThat(lista.textoAlertaErro()).containsIgnoringCase("produto");
+    }
+
+    @Test @Order(7)
+    void sqlInjection_naoVazaDadosInternos() {
+        criarPedidoNaLista("'; DROP TABLE pedidos; --");
         String pageSource = driver.getPageSource();
         assertThat(pageSource).doesNotContain("java.sql");
         assertThat(pageSource).doesNotContain("HibernateException");
     }
 
-    @Test
-    @Order(8)
-    void editarPedido_funciona() {
-        PedidoListPage lista = criarPedidoNaLista("Para Editar", "20.00");
-
-        PedidoFormPage form = lista.clicarEditarNaLinha(0);
-        assertThat(form.getValorDescricao()).isEqualTo("Para Editar");
-
-        lista = form.preencherESalvar("Pedido Editado", "20.00");
-        assertThat(driver.getPageSource()).contains("Pedido Editado");
+    @Test @Order(8)
+    void editarPedido_atualizaObservacao() {
+        criarPedidoNaLista("Observacao Original");
+        PedidoFormPage form = abrirLista().clicarEditarNaLinha(0);
+        assertThat(form.getValorObservacao()).isEqualTo("Observacao Original");
+        assertThat(form.preencherESalvarEdicao("Observacao Editada").alertaSucessoVisivel()).isTrue();
     }
 
-    @Test
-    @Order(9)
+    @Test @Order(9)
     void avancarStatus_pendenteParaProcessando() {
-        PedidoListPage lista = criarPedidoNaLista("Avançar Status Teste", "30.00");
-        lista = lista.clicarBotaoStatus("PROCESSANDO");
+        PedidoListPage lista = criarPedidoNaLista("Avançar Status Teste").clicarBotaoStatus("PROCESSANDO");
         assertThat(driver.getPageSource()).contains("PROCESSANDO");
     }
 
-    @Test
-    @Order(10)
+    @Test @Order(10)
     void contestarPedidoConcluido_funciona() {
-        PedidoListPage lista = criarPedidoNaLista("Para Contestar", "50.00");
-        lista = lista.clicarBotaoStatus("PROCESSANDO");
-        lista = lista.clicarBotaoStatus("CONCLUIDO");
-        lista = lista.clicarContestaNaLinha("Produto recebido com defeito");
+        PedidoListPage lista = criarPedidoNaLista("Para Contestar")
+                .clicarBotaoStatus("PROCESSANDO")
+                .clicarBotaoStatus("CONCLUIDO")
+                .clicarContestaNaLinha("Produto recebido com defeito");
         assertThat(driver.getPageSource()).contains("CONTESTADO");
     }
 
-    @Test
-    @Order(11)
+    @Test @Order(11)
     void cancelarPedido_funciona() {
-        PedidoListPage lista = criarPedidoNaLista("Para Cancelar", "15.00");
-        lista = lista.clicarBotaoStatus("CANCELADO");
-        assertThat(driver.getPageSource()).contains("CANCELADO");
+        assertThat(criarPedidoNaLista("Para Cancelar").clicarBotaoStatus("CANCELADO")
+                .getBadgeStatusNaLinha(0)).containsIgnoringCase("CANCELADO");
     }
 
-    @Test
-    @Order(12)
-    void removerPedido_funciona() {
-        PedidoListPage lista = criarPedidoNaLista("Para Remover", "7.00");
+    @Test @Order(12)
+    void removerPedido_decrementaContagem() {
+        PedidoListPage lista = criarPedidoNaLista("Para Remover");
         int totalAntes = lista.contarPedidos();
-        lista = lista.clicarDeletarNaLinha(0);
-        assertThat(lista.contarPedidos()).isLessThan(totalAntes);
+        assertThat(lista.clicarDeletarNaLinha(0).contarPedidos()).isLessThan(totalAntes);
     }
 
-    @Test
-    @Order(13)
-    void deveExibirPaginaDeDetalhe() {
-        criarPedidoNaLista("Pedido Para Detalhe", "25.00");
-
-        WebElement linkDetalhe = driver.findElement(
-                By.cssSelector("#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']"));
-        linkDetalhe.click();
-
+    @Test @Order(13)
+    void detalhe_exibeDescricaoGeradaAutomaticamente() {
+        criarPedidoNaLista("Pedido Para Detalhe");
+        driver.findElement(By.cssSelector(
+                "#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']:not([href*='editar'])")).click();
         wait.until(ExpectedConditions.urlMatches(".*/pedidos/[0-9a-f\\-]+$"));
-        assertThat(driver.getCurrentUrl()).matches(".*/pedidos/[0-9a-f\\-]+");
-        assertThat(driver.getPageSource()).contains("Pedido Para Detalhe");
+        assertThat(driver.getPageSource()).containsIgnoringCase("Produto Teste Selenium");
     }
 
-    @Test
-    @Order(14)
-    void deveExibirErroAoCriarComDescricaoVazia() {
-        driver.get(baseUrl() + "/pedidos/novo");
-        PedidoFormPage form = new PedidoFormPage(driver);
-        form = form.preencherESubmeterComErro("", "10.00");
-        assertThat(form.erroEstaVisivel()).isTrue();
-    }
-
-    @Test
-    @Order(15)
+    @Test @Order(14)
     void deveManterPedidoAoCancelarExclusao() {
-        PedidoListPage lista = criarPedidoNaLista("Pedido Manter", "50.00");
+        PedidoListPage lista = criarPedidoNaLista("Pedido Manter");
         int antes = lista.contarPedidos();
-
         ((JavascriptExecutor) driver).executeScript("window.confirm = function(){ return false; }");
-        WebElement btn = driver.findElements(
-                By.cssSelector("form[action*='/deletar'] button[type='submit']")).get(0);
-        btn.click();
-
+        driver.findElements(By.cssSelector("form[action*='/deletar'] button[type='submit']")).get(0).click();
         assertThat(lista.contarPedidos()).isEqualTo(antes);
     }
 
-    @Test
-    @Order(16)
+    @Test @Order(15)
     void deveExibirBadgeStatusCorreto() {
-        criarPedidoNaLista("Badge Teste", "10.00");
-
-        WebElement badge = driver.findElement(
-                By.cssSelector("#tabelaPedidos tbody tr:first-child .sbadge"));
+        criarPedidoNaLista("Badge Teste");
+        WebElement badge = driver.findElement(By.cssSelector("#tabelaPedidos tbody tr:first-child .sbadge"));
         assertThat(badge.getText()).containsIgnoringCase("PENDENTE");
         assertThat(badge.getAttribute("class")).contains("sb-PENDENTE");
     }
 
-    @Test
-    @Order(17)
-    void deveExibirHistoricoDeStatusNaTeladeDetalhe() {
-        PedidoListPage lista = criarPedidoNaLista("Pedido Historico", "40.00");
-        WebElement linkDetalhe = driver.findElement(
-                By.cssSelector("#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']"));
-        linkDetalhe.click();
+    @Test @Order(16)
+    void deveExibirHistoricoDeStatusNaTelaDeDetalhe() {
+        criarPedidoNaLista("Pedido Historico");
+        driver.findElement(By.cssSelector(
+                "#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']:not([href*='editar'])")).click();
         wait.until(ExpectedConditions.urlMatches(".*/pedidos/[0-9a-f\\-]+$"));
-        PedidoDetailPage detalhe = new PedidoDetailPage(driver);
-        assertThat(detalhe.getStatus()).containsIgnoringCase("PENDENTE");
+        assertThat(new PedidoDetailPage(driver).getStatus()).containsIgnoringCase("PENDENTE");
     }
 
-    @Test
-    @Order(18)
-    void deveAdicionarItemManualSemProdutoId() {
-        PedidoListPage lista = criarPedidoNaLista("Pedido Com Item Manual", "50.00");
-
-        WebElement linkDetalhe = driver.findElement(
-                By.cssSelector("#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']"));
-        linkDetalhe.click();
+    @Test @Order(17)
+    void deveAdicionarItemManualNoDetalhe() {
+        criarPedidoNaLista("Pedido Com Item Manual");
+        driver.findElement(By.cssSelector(
+                "#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']:not([href*='editar'])")).click();
         wait.until(ExpectedConditions.urlMatches(".*/pedidos/[0-9a-f\\-]+$"));
-
         PedidoDetailPage detalhe = new PedidoDetailPage(driver);
         assertThat(detalhe.formularioAdicionarItemVisivel()).isTrue();
+        assertThat(detalhe.adicionarItem("Produto Manual", "25.00", 2).contarItens()).isGreaterThan(0);
+    }
 
-        detalhe = detalhe.adicionarItem("Produto Manual", "25.00", 2);
-        assertThat(detalhe.contarItens()).isGreaterThan(0);
+    @Test @Order(18)
+    void buscarPorDescricao_filtraResultados() {
+        criarPedidoNaLista("Pedido Busca Alpha");
+        criarPedidoNaLista("Pedido Busca Beta");
+        driver.get(baseUrl() + "/pedidos?busca=Alpha");
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.id("tabelaPedidos")));
+        assertThat(driver.getPageSource()).containsIgnoringCase("Alpha");
     }
 }

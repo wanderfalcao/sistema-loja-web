@@ -4,49 +4,72 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.FindBy;
 
 import java.util.List;
 
+/**
+ * Page Object do formulário de pedido.
+ *
+ * Modo criação (/pedidos/novo): exibe tabela de produtos com inputs[name="quantidades"],
+ * campo #observacao e botão #btn-criar-pedido. Não há campos #descricao ou #valor.
+ *
+ * Modo edição (/pedidos/{id}/editar): exibe apenas #observacao e botão submit.
+ * Após submit, redireciona para /pedidos (lista).
+ */
 public class PedidoFormPage extends BasePage {
-
-    @FindBy(id = "descricao")
-    private WebElement campoDescricao;
-
-    @FindBy(id = "valor")
-    private WebElement campoValor;
-
-    @FindBy(css = "button[type='submit']")
-    private WebElement btnSalvar;
 
     public PedidoFormPage(WebDriver driver) {
         super(driver);
     }
 
-    /** Preenche o formulário e submete esperando redirecionamento para a lista. */
-    public PedidoListPage preencherESalvar(String descricao, String valor) {
-        aguardarElemento(By.id("descricao"));
-        campoDescricao.clear();
-        campoDescricao.sendKeys(descricao);
-        campoValor.clear();
-        campoValor.sendKeys(valor);
-        clicarComJs(btnSalvar);
+    /** Modo criação: qty=1 no primeiro produto, preenche observacao, submete → detalhe. */
+    public PedidoDetailPage preencherESalvar(String observacao) {
+        aguardarElemento(By.id("formNovoPedido"));
+        List<WebElement> qtyInputs = driver.findElements(By.name("quantidades"));
+        if (!qtyInputs.isEmpty()) {
+            WebElement first = qtyInputs.get(0);
+            ((JavascriptExecutor) driver).executeScript("arguments[0].value='1'", first);
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].dispatchEvent(new Event('input'))", first);
+        }
+        preencherObservacao(observacao);
+        clicarComJs(driver.findElement(By.cssSelector("button[type='submit']")));
+        return new PedidoDetailPage(driver);
+    }
+
+    /** Modo criação: submete sem selecionar nenhum produto → redireciona para lista com erro. */
+    public PedidoListPage submeterSemItens() {
+        aguardarElemento(By.id("formNovoPedido"));
+        driver.findElements(By.name("quantidades")).forEach(inp ->
+                ((JavascriptExecutor) driver).executeScript("arguments[0].value='0'", inp));
+        ((JavascriptExecutor) driver).executeScript("document.getElementById('formNovoPedido').submit();");
         return new PedidoListPage(driver);
     }
 
-    /**
-     * Submete com dados inválidos usando JS para contornar a validação HTML5,
-     * chegando à validação do servidor.
-     */
-    public PedidoFormPage preencherESubmeterComErro(String descricao, String valor) {
-        aguardarElemento(By.id("descricao"));
-        ((JavascriptExecutor) driver).executeScript(
-                "document.getElementById('descricao').value = arguments[0];" +
-                "document.getElementById('valor').value = arguments[1];",
-                descricao, valor);
-        ((JavascriptExecutor) driver).executeScript("document.querySelector('form').submit();");
-        aguardarElemento(By.cssSelector(".alert-danger"));
-        return new PedidoFormPage(driver);
+    /** Modo edição: preenche observacao e submete → redireciona para lista. */
+    public PedidoListPage preencherESalvarEdicao(String observacao) {
+        aguardarElemento(By.id("observacao"));
+        preencherObservacao(observacao);
+        clicarComJs(driver.findElement(By.cssSelector("button[type='submit']")));
+        return new PedidoListPage(driver);
+    }
+
+    public String getValorObservacao() {
+        aguardarElemento(By.id("observacao"));
+        return driver.findElement(By.id("observacao")).getAttribute("value");
+    }
+
+    public PedidoListPage cancelar() {
+        clicarComJs(driver.findElement(By.cssSelector("a[href='/pedidos']")));
+        return new PedidoListPage(driver);
+    }
+
+    public boolean formularioNovoVisivel() {
+        return !driver.findElements(By.id("formNovoPedido")).isEmpty();
+    }
+
+    public boolean tabelaProdutosVisivel() {
+        return !driver.findElements(By.name("quantidades")).isEmpty();
     }
 
     public boolean erroEstaVisivel() {
@@ -59,14 +82,11 @@ public class PedidoFormPage extends BasePage {
         return driver.findElement(By.cssSelector(".alert-danger")).getText();
     }
 
-    public PedidoListPage cancelar() {
-        WebElement btnCancelar = driver.findElement(By.cssSelector("a[href='/pedidos']"));
-        clicarComJs(btnCancelar);
-        return new PedidoListPage(driver);
-    }
-
-    public String getValorDescricao() {
-        aguardarElemento(By.id("descricao"));
-        return campoDescricao.getAttribute("value");
+    private void preencherObservacao(String observacao) {
+        List<WebElement> campos = driver.findElements(By.id("observacao"));
+        if (!campos.isEmpty() && observacao != null && !observacao.isBlank()) {
+            campos.get(0).clear();
+            campos.get(0).sendKeys(observacao);
+        }
     }
 }

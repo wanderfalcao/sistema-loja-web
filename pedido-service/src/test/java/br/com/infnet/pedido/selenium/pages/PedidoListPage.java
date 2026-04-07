@@ -105,6 +105,22 @@ public class PedidoListPage extends BasePage {
         return alertSucesso.getText();
     }
 
+    public boolean alertaErroVisivel() {
+        List<WebElement> alertas = driver.findElements(By.cssSelector(".alert-danger"));
+        if (alertas.isEmpty()) return false;
+        try {
+            wait.until(ExpectedConditions.visibilityOf(alertas.get(0)));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String textoAlertaErro() {
+        aguardarElemento(By.cssSelector(".alert-danger"));
+        return driver.findElement(By.cssSelector(".alert-danger")).getText();
+    }
+
     public String getBadgeStatusNaLinha(int indice) {
         aguardarElemento(LINHAS);
         return linhas.get(indice).findElement(By.cssSelector(".sbadge, .badge")).getText();
