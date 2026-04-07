@@ -93,7 +93,7 @@ class PedidoSeleniumTest {
     @AfterEach
     void limparRemote() {
         if (!REMOTE_MODE || createdIds.isEmpty()) return;
-        driver.get(baseUrl() + "/pedidos");
+        driver.get(baseUrl() + "/pedidos?size=200");
         PedidoListPage lista = new PedidoListPage(driver);
         for (String id : new ArrayList<>(createdIds)) {
             try {
@@ -107,7 +107,7 @@ class PedidoSeleniumTest {
     }
 
     PedidoListPage abrirLista() {
-        driver.get(baseUrl() + "/pedidos");
+        driver.get(baseUrl() + "/pedidos?size=200");
         return new PedidoListPage(driver);
     }
 
@@ -117,7 +117,7 @@ class PedidoSeleniumTest {
         String url = driver.getCurrentUrl();
         String id = url.substring(url.lastIndexOf('/') + 1);
         createdIds.add(id);
-        driver.get(baseUrl() + "/pedidos");
+        driver.get(baseUrl() + "/pedidos?size=200");
         return new PedidoListPage(driver);
     }
 
@@ -264,7 +264,7 @@ class PedidoSeleniumTest {
     void buscarPorDescricao_filtraResultados() {
         criarPedidoNaLista("Pedido Busca Alpha");
         criarPedidoNaLista("Pedido Busca Beta");
-        driver.get(baseUrl() + "/pedidos?busca=Alpha");
+        driver.get(baseUrl() + "/pedidos?size=200&busca=Alpha");
         wait.until(ExpectedConditions.presenceOfElementLocated(By.id("tabelaPedidos")));
         assertThat(driver.getPageSource()).containsIgnoringCase("Alpha");
     }
