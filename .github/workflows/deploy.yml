@@ -95,7 +95,7 @@ jobs:
             ${{ env.GHCR_PRODUTO }}:latest
             ${{ steps.ar-tags.outputs.produto }}
           cache-from: type=gha
-          cache-to:   type=gha,mode=max
+          cache-to:   type=gha,mode=min
 
       - name: Build e push — pedido-service
         uses: docker/build-push-action@v5
@@ -108,7 +108,7 @@ jobs:
             ${{ env.GHCR_PEDIDO }}:latest
             ${{ steps.ar-tags.outputs.pedido }}
           cache-from: type=gha
-          cache-to:   type=gha,mode=max
+          cache-to:   type=gha,mode=min
 
       - name: Resumo das imagens publicadas
         run: |
