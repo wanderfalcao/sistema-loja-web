@@ -71,6 +71,7 @@ class PedidoSeleniumTest {
     void setUp() {
         repository.deleteAll();
         when(produtoServiceClient.listarAtivos()).thenReturn(List.of(PRODUTO_MOCK));
+        when(produtoServiceClient.buscarProduto(PRODUTO_MOCK.getId())).thenReturn(PRODUTO_MOCK);
     }
 
     String baseUrl() { return "http://localhost:" + port; }
