@@ -29,6 +29,9 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
     @Value("${produto.service.url:http://produto-service:8081}")
     private String produtoServiceUrl;
 
+    @Value("${produto.service.page.size:200}")
+    private int produtoPageSize;
+
     @Override
     public ProdutoInfo buscarProduto(UUID id) {
         String url = produtoServiceUrl + PRODUTOS_PATH + id;
@@ -44,13 +47,13 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
 
     @Override
     public List<ProdutoInfo> listarAtivos() {
-        String url = produtoServiceUrl + "/api/v1/produtos?size=200&sort=nome";
+        String url = produtoServiceUrl + "/api/v1/produtos?size=" + produtoPageSize + "&sort=nome";
         try {
             ProdutoPageResponse page = restTemplate.getForObject(url, ProdutoPageResponse.class);
             return page != null ? page.getContent() : List.of();
         } catch (Exception e) {
-            log.warn("Falha ao listar produtos-service: {}", e.getMessage());
-            return List.of();
+            log.warn("Falha ao listar produtos do produto-service (url={}): {}", url, e.getMessage());
+            throw new DomainException("Não foi possível carregar os produtos. Tente novamente em instantes.");
         }
     }
 

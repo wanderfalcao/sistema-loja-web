@@ -43,7 +43,8 @@ public class PedidoController {
     private static final String MSG_VALOR_INVALIDO   = "Valor inválido: \"%s\". Use formato numérico (ex: 10.50).";
     private static final String MSG_ITEM_ADICIONADO  = "Item adicionado ao pedido.";
     private static final String MSG_ITEM_REMOVIDO    = "Item removido do pedido.";
-    private static final String MSG_SEM_ITENS        = "Selecione ao menos um produto com quantidade maior que zero.";
+    private static final String MSG_SEM_ITENS         = "Selecione ao menos um produto com quantidade maior que zero.";
+    private static final String MSG_PRODUTOS_INDISPONIVEIS = "Não foi possível carregar os produtos. Tente novamente em instantes.";
 
     private final PedidoService service;
     private final ProdutoServiceClient produtoServiceClient;
@@ -92,8 +93,13 @@ public class PedidoController {
 
     @GetMapping("/novo")
     public String formularioNovo(Model model) {
-        model.addAttribute("produtos", produtoServiceClient.listarAtivos()
-                .stream().filter(p -> p.isAtivo()).toList());
+        try {
+            model.addAttribute("produtos", produtoServiceClient.listarAtivos()
+                    .stream().filter(p -> p.isAtivo()).toList());
+        } catch (DomainException e) {
+            model.addAttribute("aviso", MSG_PRODUTOS_INDISPONIVEIS);
+            model.addAttribute("produtos", List.of());
+        }
         return VIEW_FORM;
     }
 
@@ -114,9 +120,11 @@ public class PedidoController {
 
     private List<ItemPedidoRequest> construirItens(List<UUID> ids, List<Integer> qtds) {
         if (ids == null || qtds == null) return List.of();
+        if (ids.size() != qtds.size())
+            throw new DomainException("Dados do formulário inconsistentes. Recarregue a página e tente novamente.");
         List<ItemPedidoRequest> result = new ArrayList<>();
         for (int i = 0; i < ids.size(); i++) {
-            int q = (i < qtds.size() && qtds.get(i) != null) ? qtds.get(i) : 0;
+            int q = qtds.get(i) != null ? qtds.get(i) : 0;
             if (q > 0) result.add(new ItemPedidoRequest(ids.get(i), null, null, null, q));
         }
         return result;

@@ -96,6 +96,17 @@ class PedidoControllerTest {
     }
 
     @Test
+    void formularioNovo_produtoServiceIndisponivel_retornaFormComAviso() throws Exception {
+        when(produtoServiceClient.listarAtivos()).thenThrow(new DomainException("indisponível"));
+
+        mockMvc.perform(get("/pedidos/novo"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("pedidos/form"))
+                .andExpect(model().attributeExists("aviso"))
+                .andExpect(model().attribute("produtos", List.of()));
+    }
+
+    @Test
     void criar_comProdutosValidos_redireciona() throws Exception {
         UUID produtoId = UUID.randomUUID();
         when(service.criarComItens(any(), any())).thenReturn(PedidoTestFactory.pedidoPendente());
