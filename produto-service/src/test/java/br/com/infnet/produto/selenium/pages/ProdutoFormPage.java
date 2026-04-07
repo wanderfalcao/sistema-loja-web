@@ -45,7 +45,10 @@ public class ProdutoFormPage extends BasePage {
         }
     }
 
-    /** Preenche nome, preço e categoria e submete aguardando redirect para a lista. */
+    /**
+     * Preenche nome, preço e categoria e submete aguardando redirect para a lista.
+     * Usa referência explícita ao DOM (não proxy @FindBy) para o stalenessOf funcionar.
+     */
     public ProdutoListPage preencherESalvar(String nome, String preco) {
         aguardarElemento(By.id("nome"));
         campoNome.clear();
@@ -53,12 +56,16 @@ public class ProdutoFormPage extends BasePage {
         campoPreco.clear();
         campoPreco.sendKeys(preco);
         selecionarPrimeiraCategoria();
-        clicarComJs(btnSalvar);
-        wait.until(ExpectedConditions.stalenessOf(btnSalvar));
+        WebElement btn = driver.findElement(By.id("btn-salvar"));
+        clicarComJs(btn);
+        wait.until(ExpectedConditions.stalenessOf(btn));
         return new ProdutoListPage(driver);
     }
 
-    /** Preenche todos os campos (incluindo descrição e estoque) e salva aguardando redirect. */
+    /**
+     * Preenche todos os campos (incluindo descrição e estoque) e salva aguardando redirect.
+     * Usa referência explícita ao DOM (não proxy @FindBy) para o stalenessOf funcionar.
+     */
     public ProdutoListPage preencherCompleto(String nome, String preco, String descricao, String estoque) {
         aguardarElemento(By.id("nome"));
         campoNome.clear();
@@ -74,8 +81,9 @@ public class ProdutoFormPage extends BasePage {
             campoEstoque.sendKeys(estoque);
         }
         selecionarPrimeiraCategoria();
-        clicarComJs(btnSalvar);
-        wait.until(ExpectedConditions.stalenessOf(btnSalvar));
+        WebElement btn = driver.findElement(By.id("btn-salvar"));
+        clicarComJs(btn);
+        wait.until(ExpectedConditions.stalenessOf(btn));
         return new ProdutoListPage(driver);
     }
 
