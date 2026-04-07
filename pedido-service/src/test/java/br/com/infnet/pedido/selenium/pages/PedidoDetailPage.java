@@ -57,7 +57,7 @@ public class PedidoDetailPage extends BasePage {
     }
 
     public boolean formularioAdicionarItemVisivel() {
-        return !driver.findElements(By.cssSelector("form[action*='/itens']")).isEmpty();
+        return !driver.findElements(By.cssSelector("form[action$='/itens']")).isEmpty();
     }
 
     public PedidoDetailPage adicionarItem(String nomeProduto, String precoUnitario, int quantidade) {
@@ -68,7 +68,7 @@ public class PedidoDetailPage extends BasePage {
         driver.findElement(By.name("quantidade")).clear();
         driver.findElement(By.name("quantidade")).sendKeys(String.valueOf(quantidade));
         WebElement btnAdicionar = driver.findElement(
-                By.cssSelector("form[action*='/itens'] button[type='submit']"));
+                By.cssSelector("form[action$='/itens'] button[type='submit']"));
         clicarComJs(btnAdicionar);
         wait.until(ExpectedConditions.stalenessOf(btnAdicionar));
         return new PedidoDetailPage(driver);
