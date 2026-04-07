@@ -49,6 +49,16 @@ class ProdutoSeleniumTest {
         return REMOTE_MODE ? REMOTE_URL : "http://localhost:" + porta;
     }
 
+    /** Nomes de produtos criados pelos testes — usados para limpeza inicial em remote mode. */
+    private static final List<String> ALL_TEST_NOMES = List.of(
+            "Monitor 4K", "Teclado Mecanico", "Mouse Gamer", "Webcam HD",
+            "Produto Original", "Produto Editado", "Produto para Excluir", "Produto Cancelado",
+            "Teclado Gamer", "Mouse Sem Fio", "Headset Pro",
+            "Monitor Full HD", "Produto Detalhe Teste", "Produto Promo",
+            "Smartphone Premium", "Notebook Gamer",
+            "'; DROP TABLE produtos; --"
+    );
+
     @BeforeAll
     static void setUpDriver() {
         WebDriverManager.chromedriver().setup();
@@ -61,6 +71,16 @@ class ProdutoSeleniumTest {
                 "--window-size=1280,800"
         );
         driver = new ChromeDriver(options);
+        if (REMOTE_MODE) {
+            // Remove lixo de runs anteriores antes de qualquer teste executar.
+            driver.get(REMOTE_URL + "/produtos?size=200");
+            for (String nome : ALL_TEST_NOMES) {
+                try {
+                    new ProdutoListPage(driver).clicarExcluirPorNome(nome);
+                    driver.get(REMOTE_URL + "/produtos?size=200");
+                } catch (Exception ignored) { /* produto não existe — ok */ }
+            }
+        }
     }
 
     @AfterAll
