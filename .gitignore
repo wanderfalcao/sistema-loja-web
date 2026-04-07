@@ -14,3 +14,10 @@ target/
 
 .DS_Store
 Thumbs.db
+
+# Claude Code local
+.claude/
+arquitetura.drawio
+mvnd.sh
+qodana.yaml
+**/.jqwik-database
