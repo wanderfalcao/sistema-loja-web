@@ -5,6 +5,7 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.ui.Select;
 
 import java.util.List;
 
@@ -32,13 +33,25 @@ public class ProdutoFormPage extends BasePage {
         super(driver);
     }
 
-    /** Preenche nome e preço e submete esperando redirecionamento para a lista. */
+    /** Seleciona a primeira categoria não vazia disponível no select. */
+    private void selecionarPrimeiraCategoria() {
+        List<WebElement> selects = driver.findElements(By.id("categoria"));
+        if (!selects.isEmpty()) {
+            Select select = new Select(selects.get(0));
+            if (select.getOptions().size() > 1) {
+                select.selectByIndex(1);
+            }
+        }
+    }
+
+    /** Preenche nome, preço e categoria e submete esperando redirecionamento para a lista. */
     public ProdutoListPage preencherESalvar(String nome, String preco) {
         aguardarElemento(By.id("nome"));
         campoNome.clear();
         campoNome.sendKeys(nome);
         campoPreco.clear();
         campoPreco.sendKeys(preco);
+        selecionarPrimeiraCategoria();
         clicarComJs(btnSalvar);
         return new ProdutoListPage(driver);
     }
@@ -58,13 +71,15 @@ public class ProdutoFormPage extends BasePage {
             campoEstoque.clear();
             campoEstoque.sendKeys(estoque);
         }
+        selecionarPrimeiraCategoria();
         clicarComJs(btnSalvar);
         return new ProdutoListPage(driver);
     }
 
     /**
      * Submete com dados inválidos usando JS para contornar a validação HTML5,
-     * chegando à validação do servidor.
+     * chegando à validação do servidor. Seleciona categoria para que a validação
+     * recaia sobre nome/preço, não sobre categoria.
      */
     public ProdutoFormPage preencherESubmeterComErro(String nome, String preco) {
         aguardarElemento(By.id("nome"));
@@ -72,6 +87,10 @@ public class ProdutoFormPage extends BasePage {
                 "document.getElementById('nome').value = arguments[0];" +
                 "document.getElementById('preco').value = arguments[1];",
                 nome, preco);
+        // seleciona a primeira categoria via JS para não disparar validação de categoria
+        ((JavascriptExecutor) driver).executeScript(
+                "var s = document.getElementById('categoria');" +
+                "if (s && s.options.length > 1) s.selectedIndex = 1;");
         ((JavascriptExecutor) driver).executeScript("document.querySelector('form').submit();");
         aguardarElemento(By.id("mensagem-erro"));
         return new ProdutoFormPage(driver);
