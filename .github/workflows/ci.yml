@@ -121,3 +121,13 @@ jobs:
           path: |
             produto-service/target/surefire-reports/
             pedido-service/target/surefire-reports/
+
+      - name: Resumo Selenium E2E
+        if: always()
+        run: |
+          echo "## Testes Selenium E2E" >> $GITHUB_STEP_SUMMARY
+          echo "| Serviço         | Grupo     | Resultado              |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------------|-----------|------------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| produto-service | selenium  | ver artefato acima     |" >> $GITHUB_STEP_SUMMARY
+          echo "| pedido-service  | selenium  | ver artefato acima     |" >> $GITHUB_STEP_SUMMARY
+          echo "::notice title=Selenium::Testes E2E concluídos — verifique o artefato selenium-resultados"

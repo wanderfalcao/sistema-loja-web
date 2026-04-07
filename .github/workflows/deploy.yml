@@ -245,12 +245,12 @@ jobs:
         if: always()
         run: |
           echo "## Deploy Dev — Cloud Run" >> $GITHUB_STEP_SUMMARY
-          echo "| Serviço | URL |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| produto-service | ${{ steps.deploy-produto.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| pedido-service  | ${{ steps.deploy-pedido.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Auth** | OIDC — Workload Identity Federation |" >> $GITHUB_STEP_SUMMARY
+          echo "| Serviço         | URL                                        |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------------|--------------------------------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| produto-service | ${{ steps.deploy-produto.outputs.url }}     |" >> $GITHUB_STEP_SUMMARY
+          echo "| pedido-service  | ${{ steps.deploy-pedido.outputs.url }}      |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit**      | \`${{ github.sha }}\`                       |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Auth**        | OIDC — Workload Identity Federation         |" >> $GITHUB_STEP_SUMMARY
 
   # ── 3. Deploy automático — test ──────────────────────────────────────────────
   deploy-test:
@@ -368,12 +368,12 @@ jobs:
         if: always()
         run: |
           echo "## Deploy Test — Cloud Run" >> $GITHUB_STEP_SUMMARY
-          echo "| Serviço | URL |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| produto-service | ${{ steps.deploy-produto.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| pedido-service  | ${{ steps.deploy-pedido.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Auth** | OIDC — Workload Identity Federation |" >> $GITHUB_STEP_SUMMARY
+          echo "| Serviço         | URL                                        |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------------|--------------------------------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| produto-service | ${{ steps.deploy-produto.outputs.url }}     |" >> $GITHUB_STEP_SUMMARY
+          echo "| pedido-service  | ${{ steps.deploy-pedido.outputs.url }}      |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit**      | \`${{ github.sha }}\`                       |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Auth**        | OIDC — Workload Identity Federation         |" >> $GITHUB_STEP_SUMMARY
 
   # ── 4. Deploy produção (aprovação manual obrigatória) ────────────────────────
   deploy-prod:
@@ -493,11 +493,11 @@ jobs:
         if: always()
         run: |
           echo "## Deploy Produção — Cloud Run" >> $GITHUB_STEP_SUMMARY
-          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **produto-service** | ${{ steps.deploy-produto.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **pedido-service**  | ${{ steps.deploy-pedido.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Auth** | OIDC — Workload Identity Federation |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Aprovação** | Requerida via GitHub Environment \`prod\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Serviço         | URL                                        |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------------|--------------------------------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| produto-service | ${{ steps.deploy-produto.outputs.url }}     |" >> $GITHUB_STEP_SUMMARY
+          echo "| pedido-service  | ${{ steps.deploy-pedido.outputs.url }}      |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit**      | \`${{ github.sha }}\`                       |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Auth**        | OIDC — Workload Identity Federation         |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Aprovação**   | Requerida via GitHub Environment \`prod\`   |" >> $GITHUB_STEP_SUMMARY
           echo "::notice title=Deploy Prod::produto-service e pedido-service em produção — ${{ github.sha }}"

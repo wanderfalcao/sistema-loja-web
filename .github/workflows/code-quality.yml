@@ -20,3 +20,14 @@ jobs:
 
       - name: Checkstyle
         run: mvn checkstyle:check -B
+
+      - name: Resumo Checkstyle
+        if: always()
+        run: |
+          echo "## Qualidade de Código — Checkstyle" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo         | Valor                        |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------------|------------------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ferramenta** | Checkstyle (Google Style)   |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Escopo**     | produto-service, pedido-service |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Falha em**   | qualquer violação de estilo  |" >> $GITHUB_STEP_SUMMARY
+          echo "::notice title=Checkstyle::Verificação de estilo concluída"
