@@ -5,7 +5,6 @@ import br.com.infnet.produto.dto.ProdutoResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface ProdutoMapper {
@@ -20,6 +19,4 @@ public interface ProdutoMapper {
     @Mapping(target = "promocaoInicio",    source = "promocao.inicio")
     @Mapping(target = "promocaoFim",       source = "promocao.fim")
     ProdutoResponse toResponse(Produto produto);
-
-    List<ProdutoResponse> toResponseList(List<Produto> produtos);
 }

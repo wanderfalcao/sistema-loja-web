@@ -11,21 +11,16 @@ import java.util.UUID;
 
 public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
 
-    List<Produto> findAllByAtivoTrueOrderByNomeAsc();
-
     Page<Produto> findAllByAtivo(Boolean ativo, Pageable pageable);
 
     boolean existsByNomeIgnoreCase(String nome);
     boolean existsByNomeIgnoreCaseAndIdNot(String nome, UUID id);
 
     boolean existsBySku(br.com.infnet.produto.domain.Sku sku);
-    boolean existsBySkuAndIdNot(br.com.infnet.produto.domain.Sku sku, UUID id);
 
     java.util.Optional<Produto> findBySku(br.com.infnet.produto.domain.Sku sku);
 
     List<Produto> findAllByCategoria(CategoriaProduto categoria);
-
-    boolean existsByCategoriaAndAtivoTrue(CategoriaProduto categoria);
 
     Page<Produto> findAllByCategoria(CategoriaProduto categoria, Pageable pageable);
 

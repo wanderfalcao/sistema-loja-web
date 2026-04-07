@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -39,28 +38,6 @@ class PedidoMapperTest {
     @Test
     void toResponse_comPedidoNull_retornaNull() {
         assertThat(mapper.toResponse(null)).isNull();
-    }
-
-    @Test
-    void toResponseList_mapeiaLista() {
-        Pedido p1 = PedidoFactory.criar("Pedido 1", new BigDecimal("10.00"), null);
-        Pedido p2 = PedidoFactory.criar("Pedido 2", new BigDecimal("20.00"), null);
-
-        List<PedidoResponse> responses = mapper.toResponseList(List.of(p1, p2));
-
-        assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getDescricao()).isEqualTo("Pedido 1");
-        assertThat(responses.get(1).getDescricao()).isEqualTo("Pedido 2");
-    }
-
-    @Test
-    void toResponseList_comListaNull_retornaNull() {
-        assertThat(mapper.toResponseList(null)).isNull();
-    }
-
-    @Test
-    void toResponseList_comListaVazia_retornaListaVazia() {
-        assertThat(mapper.toResponseList(List.of())).isEmpty();
     }
 
     @Test
