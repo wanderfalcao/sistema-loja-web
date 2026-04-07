@@ -69,8 +69,9 @@ public class PedidoListPage extends BasePage {
 
     public PedidoListPage clicarContestaNaLinha(String motivo) {
         By contestarSelector = By.cssSelector("button[data-status-action='CONTESTAR']");
-        aguardarElemento(contestarSelector);
-        clicarComJs(driver.findElements(contestarSelector).get(0));
+        aguardarClicavel(contestarSelector);
+        // clique nativo (não JS) para que Bootstrap receba o evento e abra o modal
+        driver.findElements(contestarSelector).get(0).click();
         aguardarElemento(By.id("motivoContestacao"));
         driver.findElement(By.id("motivoContestacao")).sendKeys(motivo);
         WebElement form = driver.findElement(By.id("formContestar"));

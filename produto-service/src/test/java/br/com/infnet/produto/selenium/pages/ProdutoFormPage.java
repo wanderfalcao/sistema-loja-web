@@ -5,6 +5,7 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 
 import java.util.List;
@@ -44,7 +45,7 @@ public class ProdutoFormPage extends BasePage {
         }
     }
 
-    /** Preenche nome, preço e categoria e submete esperando redirecionamento para a lista. */
+    /** Preenche nome, preço e categoria e submete aguardando redirect para a lista. */
     public ProdutoListPage preencherESalvar(String nome, String preco) {
         aguardarElemento(By.id("nome"));
         campoNome.clear();
@@ -53,10 +54,11 @@ public class ProdutoFormPage extends BasePage {
         campoPreco.sendKeys(preco);
         selecionarPrimeiraCategoria();
         clicarComJs(btnSalvar);
+        wait.until(ExpectedConditions.stalenessOf(btnSalvar));
         return new ProdutoListPage(driver);
     }
 
-    /** Preenche todos os campos (incluindo descrição e estoque) e salva. */
+    /** Preenche todos os campos (incluindo descrição e estoque) e salva aguardando redirect. */
     public ProdutoListPage preencherCompleto(String nome, String preco, String descricao, String estoque) {
         aguardarElemento(By.id("nome"));
         campoNome.clear();
@@ -73,6 +75,7 @@ public class ProdutoFormPage extends BasePage {
         }
         selecionarPrimeiraCategoria();
         clicarComJs(btnSalvar);
+        wait.until(ExpectedConditions.stalenessOf(btnSalvar));
         return new ProdutoListPage(driver);
     }
 

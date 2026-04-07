@@ -4,6 +4,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.util.List;
 
@@ -33,7 +34,9 @@ public class PedidoFormPage extends BasePage {
                     "arguments[0].dispatchEvent(new Event('input'))", first);
         }
         preencherObservacao(observacao);
-        clicarComJs(driver.findElement(By.cssSelector("button[type='submit']")));
+        WebElement btn = driver.findElement(By.cssSelector("button[type='submit']"));
+        clicarComJs(btn);
+        wait.until(ExpectedConditions.stalenessOf(btn));
         return new PedidoDetailPage(driver);
     }
 
@@ -46,11 +49,13 @@ public class PedidoFormPage extends BasePage {
         return new PedidoListPage(driver);
     }
 
-    /** Modo edição: preenche observacao e submete → redireciona para lista. */
+    /** Modo edição: preenche observacao e submete → aguarda redirect para lista. */
     public PedidoListPage preencherESalvarEdicao(String observacao) {
         aguardarElemento(By.id("observacao"));
         preencherObservacao(observacao);
-        clicarComJs(driver.findElement(By.cssSelector("button[type='submit']")));
+        WebElement btn = driver.findElement(By.cssSelector("button[type='submit']"));
+        clicarComJs(btn);
+        wait.until(ExpectedConditions.stalenessOf(btn));
         return new PedidoListPage(driver);
     }
 
