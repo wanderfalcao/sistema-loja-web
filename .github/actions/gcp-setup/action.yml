@@ -1,0 +1,32 @@
+name: GCP Setup
+description: Autentica via OIDC e configura gcloud CLI. Retorna o outcome do step de auth.
+
+inputs:
+  wif_provider:
+    description: Workload Identity Provider (ex: projects/123/locations/global/workloadIdentityPools/...)
+    required: true
+  service_account:
+    description: Service Account email do GCP
+    required: true
+
+outputs:
+  outcome:
+    description: "'success' se a autenticação funcionou, 'failure' caso contrário"
+    value: ${{ steps.auth.outcome }}
+
+runs:
+  using: composite
+  steps:
+    - name: Autenticar no GCP via OIDC (Workload Identity Federation)
+      id: auth
+      continue-on-error: true
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.wif_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Configurar gcloud CLI
+      if: steps.auth.outcome == 'success'
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        skip_install: false

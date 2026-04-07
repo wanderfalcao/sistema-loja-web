@@ -39,23 +39,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Autenticação OIDC no GCP (sem chave JSON, sem segredo estático) ──────
-      # O GitHub emite um JWT assinado com claims do repositório.
-      # O GCP valida o token via Workload Identity Federation e emite
-      # credenciais temporárias — nenhuma chave de longa duração armazenada.
-      - name: Autenticar no GCP via OIDC (Workload Identity Federation)
+      - name: Autenticar no GCP e configurar gcloud
         id: gcp-auth
-        continue-on-error: true
-        uses: google-github-actions/auth@v2
+        uses: ./.github/actions/gcp-setup
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          # ex: projects/123456789/locations/global/workloadIdentityPools/github/providers/github
+          wif_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          # ex: github-actions@meu-projeto.iam.gserviceaccount.com
-
-      - name: Configurar gcloud CLI
-        if: steps.gcp-auth.outcome == 'success'
-        uses: google-github-actions/setup-gcloud@v2
 
       - name: Calcular tags do Artifact Registry
         id: ar-tags
@@ -133,17 +122,12 @@ jobs:
     steps:
       # OIDC: cada ambiente pode usar uma Service Account diferente,
       # com permissões restritas apenas ao Cloud Run do ambiente alvo.
-      - name: Autenticar no GCP via OIDC (dev)
+      - name: Autenticar no GCP e configurar gcloud
         id: gcp-auth
-        continue-on-error: true
-        uses: google-github-actions/auth@v2
+        uses: ./.github/actions/gcp-setup
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          wif_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Configurar gcloud CLI
-        if: steps.gcp-auth.outcome == 'success'
-        uses: google-github-actions/setup-gcloud@v2
 
       # produto-service: Cloud Run escala para zero quando ocioso
       - name: Deploy produto-service → Cloud Run dev
@@ -224,7 +208,6 @@ jobs:
 
       - name: Testes Selenium pós-deploy (dev)
         if: steps.gcp-auth.outcome == 'success'
-        continue-on-error: true
         run: |
           mvn test -pl produto-service,pedido-service \
             -Dgroups=selenium -Dsurefire.excludedGroups= \
@@ -262,17 +245,12 @@ jobs:
       id-token: write
 
     steps:
-      - name: Autenticar no GCP via OIDC (test)
+      - name: Autenticar no GCP e configurar gcloud
         id: gcp-auth
-        continue-on-error: true
-        uses: google-github-actions/auth@v2
+        uses: ./.github/actions/gcp-setup
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          wif_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Configurar gcloud CLI
-        if: steps.gcp-auth.outcome == 'success'
-        uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy produto-service → Cloud Run test
         id: deploy-produto
@@ -385,19 +363,14 @@ jobs:
       id-token: write
 
     steps:
-      - name: Autenticar no GCP via OIDC (prod)
+      # Em prod, a Service Account tem permissão apenas para o serviço de
+      # produção — princípio do menor privilégio (configurado no GCP IAM).
+      - name: Autenticar no GCP e configurar gcloud
         id: gcp-auth
-        continue-on-error: true
-        uses: google-github-actions/auth@v2
+        uses: ./.github/actions/gcp-setup
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          wif_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          # Em prod, a Service Account tem permissão apenas para
-          # o serviço de produção — princípio do menor privilégio
-
-      - name: Configurar gcloud CLI
-        if: steps.gcp-auth.outcome == 'success'
-        uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy produto-service → Cloud Run prod
         id: deploy-produto
