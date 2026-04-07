@@ -60,7 +60,11 @@ jobs:
       - name: Calcular tags do Artifact Registry
         id: ar-tags
         run: |
-          AR="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
+          # GCP_PROJECT_ID deve ser configurado como Variable (não Secret) em
+          # Settings → Secrets and variables → Actions → Variables.
+          # Secrets são mascarados no GITHUB_OUTPUT e chegam vazios nos jobs
+          # dependentes — por isso project ID não pode ser Secret aqui.
+          AR="${{ env.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
           echo "base=${AR}"            >> $GITHUB_OUTPUT
           echo "produto=${AR}/produto-service:${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "pedido=${AR}/pedido-service:${{ github.sha }}"   >> $GITHUB_OUTPUT
