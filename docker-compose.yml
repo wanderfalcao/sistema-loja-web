@@ -6,13 +6,15 @@ services:
       - "5433:5432"
     environment:
       POSTGRES_DB: produto_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       TZ: America/Sao_Paulo
     volumes:
       - produto_db_data:/var/lib/postgresql/data
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d produto_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d produto_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,28 +26,33 @@ services:
       - "5434:5432"
     environment:
       POSTGRES_DB: pedido_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       TZ: America/Sao_Paulo
     volumes:
       - pedido_db_data:/var/lib/postgresql/data
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pedido_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d pedido_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   pedido-test-db:
     image: postgres:16-alpine
+    container_name: pedido-test-db
     ports:
       - "5435:5432"
     environment:
       POSTGRES_DB: testdb
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test
+      POSTGRES_USER: ${TEST_DB_USER:-test}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-test}
       TZ: America/Sao_Paulo
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test -d testdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${TEST_DB_USER:-test} -d testdb"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -57,6 +64,8 @@ services:
     container_name: eureka-server
     ports:
       - "8761:8761"
+    networks:
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]
       interval: 15s
@@ -77,6 +86,9 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+    networks:
+      - backend
+      - frontend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
       interval: 15s
@@ -99,6 +111,9 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+    networks:
+      - backend
+      - frontend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
       interval: 15s
@@ -123,6 +138,8 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+    networks:
+      - frontend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 15s
@@ -133,6 +150,7 @@ services:
   sonarqube:
     image: sonarqube:community
     container_name: sonarqube
+    profiles: [analysis]
     ports:
       - "9000:9000"
     environment:
@@ -141,6 +159,8 @@ services:
     volumes:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9000/api/system/status | grep -q UP || exit 1"]
       interval: 30s
@@ -151,14 +171,17 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
+    profiles: [tools]
     ports:
       - "5050:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@loja.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@loja.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     depends_on:
       - produto-db
       - pedido-db
+    networks:
+      - backend
 
   urls:
     image: alpine
@@ -166,6 +189,8 @@ services:
     depends_on:
       api-gateway:
         condition: service_healthy
+    networks:
+      - frontend
     entrypoint: ["sh", "-c"]
     command:
       - |
@@ -176,10 +201,16 @@ services:
         printf '\033[1;32m║\033[0m  Pedidos     \033[1;34mhttp://localhost:8080/pedidos\033[0m         \033[1;32m║\033[0m\n'
         printf '\033[1;32m║\033[0m  Produtos    \033[1;34mhttp://localhost:8080/produtos\033[0m        \033[1;32m║\033[0m\n'
         printf '\033[1;32m║\033[0m  Swagger     \033[1;34mhttp://localhost:8080/swagger-ui.html\033[0m \033[1;32m║\033[0m\n'
-        printf '\033[1;32m║\033[0m  SonarQube   \033[1;34mhttp://localhost:9000\033[0m                 \033[1;32m║\033[0m\n'
-        printf '\033[1;32m║\033[0m  PgAdmin     \033[1;34mhttp://localhost:5050\033[0m                 \033[1;32m║\033[0m\n'
+        printf '\033[1;32m║\033[0m  SonarQube   \033[1;34mhttp://localhost:9000\033[0m  (--profile analysis)\033[0m \033[1;32m║\033[0m\n'
+        printf '\033[1;32m║\033[0m  PgAdmin     \033[1;34mhttp://localhost:5050\033[0m  (--profile tools)\033[0m    \033[1;32m║\033[0m\n'
         printf '\033[1;32m╚══════════════════════════════════════════════════╝\033[0m\n'
         printf '\n'
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
 
 volumes:
   produto_db_data:
