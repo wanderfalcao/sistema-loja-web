@@ -32,9 +32,12 @@ public class ProdutoListPage extends BasePage {
     }
 
     public int contarProdutos() {
-        // A tabela não é renderizada quando não há produtos (template mostra mensagem vazia)
-        if (driver.findElements(By.id("tabela-produtos")).isEmpty()) return 0;
-        aguardarElemento(By.id("tabela-produtos"));
+        // A tabela só existe quando há produtos; se não aparecer em 10s, banco está vazio
+        try {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("tabela-produtos")));
+        } catch (org.openqa.selenium.TimeoutException e) {
+            return 0;
+        }
         return (int) linhas.stream()
                 .filter(l -> !l.findElements(By.cssSelector(".btn-excluir")).isEmpty())
                 .count();
@@ -77,7 +80,7 @@ public class ProdutoListPage extends BasePage {
     public ProdutoDetalhePage clicarDetalhePorNome(String nome) {
         aguardarElemento(LINHAS);
         WebElement link = linhas.stream()
-                .filter(l -> l.getText().contains(nome))
+                .filter(l -> nomeIgual(l, nome))
                 .findFirst()
                 .orElseThrow()
                 .findElement(By.cssSelector("a[title='Detalhe']"));
@@ -88,7 +91,7 @@ public class ProdutoListPage extends BasePage {
     public ProdutoFormPage clicarEditarPorNome(String nome) {
         aguardarElemento(LINHAS);
         WebElement btn = linhas.stream()
-                .filter(l -> l.getText().contains(nome))
+                .filter(l -> nomeIgual(l, nome))
                 .findFirst()
                 .orElseThrow()
                 .findElement(By.cssSelector(".btn-editar"));
@@ -99,7 +102,7 @@ public class ProdutoListPage extends BasePage {
     public ProdutoListPage clicarExcluirPorNome(String nome) {
         aguardarElemento(LINHAS);
         WebElement btn = linhas.stream()
-                .filter(l -> l.getText().contains(nome))
+                .filter(l -> nomeIgual(l, nome))
                 .findFirst()
                 .orElseThrow()
                 .findElement(By.cssSelector(".btn-excluir"));
@@ -108,6 +111,12 @@ public class ProdutoListPage extends BasePage {
         driver.switchTo().alert().accept();
         wait.until(ExpectedConditions.stalenessOf(btn));
         return new ProdutoListPage(driver);
+    }
+
+    /** Verifica se a célula de nome da linha contém EXATAMENTE o nome informado. */
+    private boolean nomeIgual(WebElement linha, String nome) {
+        List<WebElement> spans = linha.findElements(By.cssSelector("span.fw-semibold"));
+        return !spans.isEmpty() && spans.get(0).getText().equals(nome);
     }
 
     public boolean alertaSucessoVisivel() {

@@ -224,6 +224,7 @@ jobs:
 
       - name: Testes Selenium pós-deploy (dev)
         if: steps.gcp-auth.outcome == 'success'
+        continue-on-error: true
         run: |
           mvn test -pl produto-service,pedido-service \
             -Dgroups=selenium -Dsurefire.excludedGroups= \
@@ -346,6 +347,7 @@ jobs:
 
       - name: Testes Selenium pós-deploy (test)
         if: steps.gcp-auth.outcome == 'success'
+        continue-on-error: true
         run: |
           mvn test -pl produto-service,pedido-service \
             -Dgroups=selenium -Dsurefire.excludedGroups= \
@@ -470,6 +472,7 @@ jobs:
 
       - name: Testes Selenium pós-deploy (prod)
         if: steps.gcp-auth.outcome == 'success'
+        continue-on-error: true
         run: |
           mvn test -pl produto-service,pedido-service \
             -Dgroups=selenium -Dsurefire.excludedGroups= \

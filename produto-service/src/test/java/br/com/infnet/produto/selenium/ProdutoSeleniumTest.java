@@ -77,32 +77,35 @@ class ProdutoSeleniumTest {
     @AfterEach
     void limparRemote() {
         if (!REMOTE_MODE || createdNomes.isEmpty()) return;
-        driver.get(baseUrl() + "/produtos");
+        // size=200 garante que todos os produtos criados estejam visíveis para exclusão
+        driver.get(baseUrl() + "/produtos?size=200");
         for (String nome : new ArrayList<>(createdNomes)) {
             try {
                 new ProdutoListPage(driver).clicarExcluirPorNome(nome);
-                driver.get(baseUrl() + "/produtos");
+                driver.get(baseUrl() + "/produtos?size=200");
             } catch (Exception ignored) { /* produto já deletado pelo próprio teste */ }
         }
     }
 
+    /** Lista com size=200 para evitar paginação nos counts e buscas por nome. */
     private ProdutoListPage abrirLista() {
-        driver.get(baseUrl() + "/produtos");
+        driver.get(baseUrl() + "/produtos?size=200");
         return new ProdutoListPage(driver);
     }
 
     private ProdutoListPage criarProdutoNaLista(String nome, String preco) {
-        ProdutoListPage lista = abrirLista();
-        lista = lista.clicarNovoProduto().preencherESalvar(nome, preco);
+        abrirLista().clicarNovoProduto().preencherESalvar(nome, preco);
         createdNomes.add(nome);
-        return lista;
+        // Após o redirect do form, navegar para a lista completa (sem paginação)
+        driver.get(baseUrl() + "/produtos?size=200");
+        return new ProdutoListPage(driver);
     }
 
     private ProdutoListPage criarProdutoCompleto(String nome, String preco, String desc, String estoque) {
-        ProdutoListPage lista = abrirLista();
-        lista = lista.clicarNovoProduto().preencherCompleto(nome, preco, desc, estoque);
+        abrirLista().clicarNovoProduto().preencherCompleto(nome, preco, desc, estoque);
         createdNomes.add(nome);
-        return lista;
+        driver.get(baseUrl() + "/produtos?size=200");
+        return new ProdutoListPage(driver);
     }
 
     @Test
@@ -256,10 +259,7 @@ class ProdutoSeleniumTest {
     @Test
     @Order(13)
     void deveCadastrarProdutoComCategoriaEVerificarNoDetalhe() {
-        driver.get(baseUrl() + "/produtos/novo");
-        ProdutoFormPage form = new ProdutoFormPage(driver);
-        ProdutoListPage lista = form.preencherCompleto("Smartphone Premium", "3500.00", "Celular top de linha", "20");
-        createdNomes.add("Smartphone Premium");
+        ProdutoListPage lista = criarProdutoCompleto("Smartphone Premium", "3500.00", "Celular top de linha", "20");
 
         assertThat(lista.contarProdutos()).isGreaterThan(0);
         ProdutoDetalhePage detalhe = lista.clicarDetalhePorNome("Smartphone Premium");
