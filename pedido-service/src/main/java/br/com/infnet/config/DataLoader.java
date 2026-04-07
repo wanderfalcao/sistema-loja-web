@@ -31,7 +31,7 @@ public class DataLoader implements ApplicationRunner {
             return;
         }
 
-        log.info("DataLoader: inserindo pedidos de exemplo da TechStore...");
+        log.info("DataLoader: inserindo pedidos de exemplo da LojaSys...");
 
         // ── PENDENTE — aguardando confirmação ────────────────────────────────
         Pedido montagem = Pedido.novo("Montagem de PC Gamer", new BigDecimal("6588.80"), null);
