@@ -1,10 +1,12 @@
 name: Deploy
 
 on:
+  push:
+    branches: [master, main]   # deploy-dev automático em todo push
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [master, main]
+    branches: [master, main]   # deploy-test/prod após CI verde
   release:
     types: [published]
   workflow_dispatch:
@@ -22,6 +24,7 @@ jobs:
   # ── 1. Build, push ghcr.io + Artifact Registry ──────────────────────────────
   build-and-push:
     if: >
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'release' ||
       github.event.workflow_run.conclusion == 'success'
@@ -252,7 +255,12 @@ jobs:
 
   # ── 3. Deploy automático — test ──────────────────────────────────────────────
   deploy-test:
-    needs: deploy-dev
+    needs: [build-and-push, deploy-dev]
+    if: >
+      github.event_name != 'push' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'release' ||
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     environment: test
     permissions:
@@ -375,7 +383,12 @@ jobs:
 
   # ── 4. Deploy produção (aprovação manual obrigatória) ────────────────────────
   deploy-prod:
-    needs: deploy-test
+    needs: [build-and-push, deploy-test]
+    if: >
+      github.event_name != 'push' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'release' ||
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     environment: prod         # bloqueia até aprovador liberar no GitHub
     permissions:
