@@ -42,6 +42,12 @@ import static org.mockito.Mockito.when;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PedidoSeleniumTest {
 
+    /** URL do serviço deployado — quando presente, o WebDriver aponta para o Cloud Run. */
+    private static final String REMOTE_URL =
+            System.getProperty("selenium.base.url.pedidos");
+    private static final boolean REMOTE_MODE =
+            REMOTE_URL != null && !REMOTE_URL.isBlank();
+
     @LocalServerPort int port;
     @Autowired PedidoRepository repository;
     @Autowired StatusHistoricoRepository historicoRepository;
@@ -71,13 +77,17 @@ class PedidoSeleniumTest {
 
     @BeforeEach
     void setUp() {
-        historicoRepository.deleteAll();
-        repository.deleteAll();
+        if (!REMOTE_MODE) {
+            historicoRepository.deleteAll();
+            repository.deleteAll();
+        }
         when(produtoServiceClient.listarAtivos()).thenReturn(List.of(PRODUTO_MOCK));
         when(produtoServiceClient.buscarProduto(PRODUTO_MOCK.getId())).thenReturn(PRODUTO_MOCK);
     }
 
-    String baseUrl() { return "http://localhost:" + port; }
+    String baseUrl() {
+        return REMOTE_MODE ? REMOTE_URL : "http://localhost:" + port;
+    }
 
     PedidoListPage abrirLista() {
         driver.get(baseUrl() + "/pedidos");

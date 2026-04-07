@@ -28,6 +28,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ProdutoSeleniumTest {
 
+    /** URL do serviço deployado — quando presente, o WebDriver aponta para o Cloud Run. */
+    private static final String REMOTE_URL =
+            System.getProperty("selenium.base.url.produtos");
+    private static final boolean REMOTE_MODE =
+            REMOTE_URL != null && !REMOTE_URL.isBlank();
+
     @LocalServerPort
     private int porta;
 
@@ -35,6 +41,10 @@ class ProdutoSeleniumTest {
     private ProdutoRepository repository;
 
     private static WebDriver driver;
+
+    private String baseUrl() {
+        return REMOTE_MODE ? REMOTE_URL : "http://localhost:" + porta;
+    }
 
     @BeforeAll
     static void setUpDriver() {
@@ -57,11 +67,11 @@ class ProdutoSeleniumTest {
 
     @BeforeEach
     void limparBanco() {
-        repository.deleteAll();
+        if (!REMOTE_MODE) repository.deleteAll();
     }
 
     private ProdutoListPage abrirLista() {
-        driver.get("http://localhost:" + porta + "/produtos");
+        driver.get(baseUrl() + "/produtos");
         return new ProdutoListPage(driver);
     }
 
@@ -225,7 +235,7 @@ class ProdutoSeleniumTest {
     @Test
     @Order(13)
     void deveCadastrarProdutoComCategoriaEVerificarNoDetalhe() {
-        driver.get("http://localhost:" + porta + "/produtos/novo");
+        driver.get(baseUrl() + "/produtos/novo");
         ProdutoFormPage form = new ProdutoFormPage(driver);
         ProdutoListPage lista = form.preencherCompleto("Smartphone Premium", "3500.00", "Celular top de linha", "20");
 
