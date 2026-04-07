@@ -16,6 +16,11 @@
     <name>pedido-service</name>
     <description>Microsserviço de Pedidos — porta 8082</description>
 
+    <properties>
+        <!-- Sobrescrito com -Dsurefire.excludedGroups= para rodar testes @Tag("selenium","integration") -->
+        <surefire.excludedGroups>selenium,integration</surefire.excludedGroups>
+    </properties>
+
     <dependencies>
         <!-- Web + Thymeleaf -->
         <dependency>
@@ -177,12 +182,12 @@
                 </configuration>
             </plugin>
 
-            <!-- Surefire — exclui testes @Tag("selenium") e @Tag("integration") do ciclo padrão -->
+            <!-- Surefire — exclui @Tag("selenium","integration") do ciclo padrão; sobrescrito com -Dsurefire.excludedGroups= -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <excludedGroups>selenium,integration</excludedGroups>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
                 </configuration>
             </plugin>
 

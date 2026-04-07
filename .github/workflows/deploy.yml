@@ -226,7 +226,7 @@ jobs:
         if: steps.gcp-auth.outcome == 'success'
         run: |
           mvn test -pl produto-service,pedido-service \
-            -Dgroups=selenium -DexcludedGroups= \
+            -Dgroups=selenium -Dsurefire.excludedGroups= \
             -Dspring.profiles.active=test \
             -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
             -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
@@ -349,7 +349,7 @@ jobs:
         if: steps.gcp-auth.outcome == 'success'
         run: |
           mvn test -pl produto-service,pedido-service \
-            -Dgroups=selenium -DexcludedGroups= \
+            -Dgroups=selenium -Dsurefire.excludedGroups= \
             -Dspring.profiles.active=test \
             -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
             -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \
@@ -474,7 +474,7 @@ jobs:
         if: steps.gcp-auth.outcome == 'success'
         run: |
           mvn test -pl produto-service,pedido-service \
-            -Dgroups=selenium -DexcludedGroups= \
+            -Dgroups=selenium -Dsurefire.excludedGroups= \
             -Dspring.profiles.active=test \
             -Dselenium.base.url.produtos=${{ steps.deploy-produto.outputs.url }} \
             -Dselenium.base.url.pedidos=${{ steps.deploy-pedido.outputs.url }} \

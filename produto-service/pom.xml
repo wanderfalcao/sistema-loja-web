@@ -16,6 +16,11 @@
     <name>produto-service</name>
     <description>Microsserviço de Produtos — porta 8081</description>
 
+    <properties>
+        <!-- Sobrescrito com -Dsurefire.excludedGroups= para rodar testes @Tag("selenium") -->
+        <surefire.excludedGroups>selenium</surefire.excludedGroups>
+    </properties>
+
     <dependencies>
         <!-- Web + Thymeleaf -->
         <dependency>
@@ -168,12 +173,12 @@
                 </configuration>
             </plugin>
 
-            <!-- Surefire — exclui testes @Tag("selenium") do ciclo padrão -->
+            <!-- Surefire — exclui @Tag("selenium") do ciclo padrão; sobrescrito com -Dsurefire.excludedGroups= -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <excludedGroups>selenium</excludedGroups>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
                 </configuration>
             </plugin>
 
