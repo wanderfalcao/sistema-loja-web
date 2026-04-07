@@ -9,24 +9,53 @@ Sistema de loja construído com microsserviços Spring Boot. O `produto-service`
 
 ## Arquitetura
 
-```
-                      ┌───────────────────┐
-                      │    api-gateway    │  :8080
-                      │  Spring Cloud GW  │  /swagger-ui.html
-                      └─────────┬─────────┘
-              lb://              │               lb://
-    ┌─────────────────────┬──────┴──────┬─────────────────────┐
-    ▼                                                         ▼
-┌───────────────┐                               ┌───────────────────┐
-│produto-service│  :8081                        │  pedido-service   │  :8082
-│ produtos, SKU │◄────── REST (via gateway) ────│  pedidos, status  │
-│ estoque, promo│                               │  audit trail      │
-└───────┬───────┘                               └────────┬──────────┘
-        │                                                │
-   produto-db :5433                               pedido-db :5434
+### Docker Compose (local)
 
-         Eureka Server :8761  —  service discovery
-         SonarQube     :9000  —  qualidade de código (local)
+```
+  Browser
+     │  HTTP :8080
+     ▼
+┌─────────────────────────────────────────────────────┐
+│              API Gateway  :8080                     │
+│  Spring Cloud Gateway + Eureka LoadBalancer         │
+│  /produtos/** → produto-service  (lb://)            │
+│  /pedidos/**  → pedido-service   (lb://)            │
+└──────────────┬──────────────────┬───────────────────┘
+               │                  │
+   ┌───────────▼──────┐   ┌───────▼───────────┐
+   │  produto-service │   │  pedido-service    │
+   │  :8081           │◄──│  :8082             │
+   │                  │   │  (via api-gateway) │
+   └────────┬─────────┘   └────────┬───────────┘
+            │                      │
+       produto-db              pedido-db
+        :5433                   :5434
+
+  Eureka Server :8761  —  service discovery
+  SonarQube     :9000  —  qualidade de código
+```
+
+### Cloud Run (prod/dev)
+
+```
+  Browser
+     │  HTTPS
+     ▼
+┌─────────────────────────────────────────────────────┐
+│              API Gateway (Cloud Run)                │
+│  /produtos/** → produto-service-dev                 │
+│  /pedidos/**  → pedido-service-dev                  │
+└──────────────┬──────────────────┬───────────────────┘
+               │                  │
+   ┌───────────▼──────┐   ┌───────▼───────────┐
+   │  produto-service │   │  pedido-service    │
+   │  Cloud Run       │◄──│  Cloud Run         │
+   │                  │   │  (sem Eureka —     │
+   │                  │   │   URL direta)      │
+   └────────┬─────────┘   └────────┬───────────┘
+            │                      │
+       Neon (produto-db)      Neon (pedido-db)
+       PostgreSQL 16          PostgreSQL 16
 ```
 
 ## Como subir
@@ -240,6 +269,174 @@ PENDENTE ──────► PROCESSANDO ──────► CONCLUIDO
 | CONCLUIDO | CONTESTADO | Abre contestação |
 | CONTESTADO | PROCESSANDO | Reinicia processamento |
 | CONTESTADO | CANCELADO | — |
+
+---
+
+---
+
+## Entrega Final — TP5
+
+### 1. Arquitetura Final do Sistema
+
+O sistema é composto por quatro serviços Spring Boot que se comunicam via HTTP, orquestrados por um API Gateway central.
+
+```
+ Browser
+    │  HTTP
+    ▼
+┌─────────────────────────────────────────────────────┐
+│              API Gateway  :8080                     │
+│  Spring Cloud Gateway + Eureka LoadBalancer         │
+│  Rotas: /produtos/** → produto-service              │
+│          /pedidos/**  → pedido-service              │
+│          /swagger-ui  → agregação OpenAPI           │
+└────────────────┬────────────────┬───────────────────┘
+                 │ lb://          │ lb://
+    ┌────────────▼──────┐   ┌────▼──────────────┐
+    │  produto-service  │   │  pedido-service    │
+    │  :8081            │◄──│  :8082             │
+    │                   │   │                   │
+    │  Domínio:         │   │  Domínio:         │
+    │  Produto          │   │  Pedido           │
+    │  Sku (VO)         │   │  ItemPedido       │
+    │  Dinheiro (VO)    │   │  StatusHistorico  │
+    │  Quantidade (VO)  │   │  Dinheiro (VO)    │
+    │  CategoriaProduto │   │  Quantidade (VO)  │
+    │  TipoOpEstoque    │   │  StatusPedido     │
+    │  Promocao         │   │                   │
+    └────────┬──────────┘   └────────┬──────────┘
+             │                       │
+        produto_db              pedido_db
+       PostgreSQL 16           PostgreSQL 16
+      (local :5433 /          (local :5434 /
+       Neon em prod)           Neon em prod)
+
+         Eureka Server :8761 — registro e descoberta
+```
+
+**Padrões aplicados:**
+- *Database per Service*: cada serviço tem seu próprio banco, sem compartilhamento de schema
+- *API Gateway*: ponto único de entrada para o browser e roteamento interno via Eureka
+- *Value Objects imutáveis*: `Dinheiro`, `Quantidade`, `Sku` encapsulam validação e semântica
+- *Factory Methods*: `Produto.novo()`, `Pedido.novo()`, `ItemPedido.criar()` centralizam criação
+- *MapStruct*: mapeamento entidade ↔ DTO gerado em tempo de compilação, sem reflexão em runtime
+
+**Comunicação entre serviços:**
+O `pedido-service` chama o `produto-service` via `ProdutoServiceClientImpl` (RestTemplate com Apache HttpClient 5 para suporte a PATCH). Em Docker toda chamada passa pelo gateway (`http://api-gateway:8080`), que aplica load balancing via Eureka. No Cloud Run a chamada vai direto à URL do produto-service (sem Eureka — `eureka.client.enabled=false` no perfil `prod`).
+
+---
+
+### 2. Configuração e Funcionamento dos Workflows no GitHub Actions
+
+O repositório possui cinco workflows em `.github/workflows/`:
+
+#### `ci.yml` — Integração Contínua
+Dispara em todo push para `master` e em pull requests.
+
+| Job | O que faz |
+|-----|-----------|
+| `testes` | `mvn verify` nos dois serviços. JaCoCo exige ≥ 90% de cobertura de linhas — build falha se não atingir. Publica relatório JUnit e HTML do JaCoCo como artefato. |
+| `selenium` | Roda após `testes`. Sobe os serviços com Testcontainers (PostgreSQL real no runner) e executa os testes `@Tag("selenium")` com ChromeDriver headless. |
+
+Resumo gerado em `$GITHUB_STEP_SUMMARY` com resultado de cada job, cobertura e artefatos.
+
+#### `code-quality.yml` — Qualidade Estática
+Roda Checkstyle com o estilo Google. Qualquer violação de severidade `error` quebra o build imediatamente.
+
+#### `security.yml` — Segurança (SAST + DAST)
+Dispara em push para `master` e toda segunda-feira às 02h UTC.
+
+| Job | Ferramenta | O que analisa |
+|-----|-----------|---------------|
+| `codeql` | GitHub CodeQL | Análise estática do código Java. Queries `security-and-quality`. Resultados em **Security → Code scanning alerts**. |
+| `dast` | OWASP ZAP Baseline | Sobe o `produto-service` com PostgreSQL real no runner e executa scan dinâmico HTTP. Relatório HTML disponível como artefato por 14 dias. |
+
+#### `sonarqube.yml` — Quality Gate
+Sobe o SonarQube Community Edition diretamente no runner (sem servidor dedicado). Executa análise nos dois serviços com JaCoCo e exibe resultado do Quality Gate no log e no `$GITHUB_STEP_SUMMARY`.
+
+#### `deploy.yml` — Deploy Automatizado
+Dispara quando o `ci.yml` conclui com sucesso (`workflow_run`), em releases publicadas ou manualmente (`workflow_dispatch`).
+
+```
+CI verde
+   │
+   ▼
+build-and-push ──► ghcr.io (cache)
+                   Artifact Registry GCP (fonte de verdade)
+   │
+   ▼
+deploy-dev ──────► Cloud Run (automático)
+   │
+   ▼
+deploy-test ─────► Cloud Run (aguarda aprovação manual)
+   │
+   ▼
+deploy-prod ─────► Cloud Run (aguarda aprovação manual)
+```
+
+Autenticação via **OIDC com Workload Identity Federation**: o GitHub emite um JWT assinado com claims do repositório; o GCP valida o token sem nenhuma chave JSON armazenada nos secrets. Os secrets do repositório contêm apenas `GCP_WIF_PROVIDER` e `GCP_SERVICE_ACCOUNT` — identificadores, não credenciais de longa duração.
+
+Todos os workflows publicam resumo em Markdown no painel do Actions via `$GITHUB_STEP_SUMMARY`.
+
+---
+
+### 3. Ambientes de Deploy e suas Proteções
+
+| Ambiente | Serviço Cloud Run | Trigger | Proteção |
+|----------|------------------|---------|----------|
+| **dev** | `produto-service-dev`<br>`pedido-service-dev` | Automático após CI verde | Nenhuma — deploy imediato |
+| **test** | `produto-service-test`<br>`pedido-service-test` | Automático após dev | **Required reviewers**: aprovação manual obrigatória antes de executar |
+| **prod** | `produto-service`<br>`pedido-service` | Automático após test | **Required reviewers**: aprovação manual obrigatória antes de executar |
+
+**Configuração dos ambientes** (GitHub → Settings → Environments):
+- `dev`: sem proteção, deploy imediato
+- `test`: reviewer obrigatório — o job fica pausado e envia notificação até alguém aprovar no GitHub
+- `prod`: reviewer obrigatório — mesmo fluxo, com a visibilidade de que é produção
+
+**Variáveis por ambiente (Cloud Run env vars):**
+
+| Variável | dev | test | prod |
+|----------|-----|------|------|
+| `SPRING_PROFILES_ACTIVE` | `prod` | `prod` | `prod` |
+| `SPRING_DATASOURCE_URL` | `PRODUTO_DB_URL` (secret) | idem | idem |
+| `PRODUTO_SERVICE_URL` | URL Cloud Run dev | URL Cloud Run test | URL Cloud Run prod |
+| `APP_PRODUTO_BASE_URL` | URL Cloud Run dev | URL Cloud Run test | URL Cloud Run prod |
+
+Cada serviço escala para zero instâncias quando ocioso (dev/test: 0–2, prod: 1–10). Banco de dados gerenciado pelo [Neon.tech](https://neon.tech) com SSL obrigatório.
+
+---
+
+### 4. Estratégias de Testes
+
+#### Testes locais (executam no CI — `ci.yml`)
+
+| Tipo | Tecnologia | O que valida |
+|------|-----------|--------------|
+| **Unitários** | JUnit 5 + Mockito | Regras de negócio isoladas: guard clauses, transições de status, cálculo de subtotal, validações de value objects |
+| **MockMvc** | Spring MVC Test | Controladores MVC e REST: payloads, códigos HTTP, redirecionamentos, flash attributes |
+| **Integração** | WireMock + Testcontainers | `pedido-service` chamando `produto-service` simulado em cenários de falha (timeout, 404, serviço indisponível) com PostgreSQL real |
+| **Property-based (fuzz)** | jqwik | Centenas de entradas geradas automaticamente validam invariantes. Inclui tentativas de SQL injection e XSS nos campos de texto — nenhuma deve lançar NullPointerException ou vazar dados |
+| **Cobertura mínima** | JaCoCo | 90% de linhas cobertas. Build falha automaticamente se não atingir |
+
+#### Análise estática e dinâmica (executam no `security.yml`)
+
+| Tipo | Tecnologia | Frequência |
+|------|-----------|------------|
+| **SAST** | GitHub CodeQL | Todo push + toda segunda-feira |
+| **DAST** | OWASP ZAP Baseline | Todo push + toda segunda-feira |
+
+O DAST sobe o `produto-service` com PostgreSQL real no runner do Actions e executa varredura HTTP automatizada, identificando vulnerabilidades como headers ausentes, endpoints expostos e configurações inseguras.
+
+#### Testes pós-deploy (executam no `deploy.yml`)
+
+Após cada deploy bem-sucedido (dev, test e prod), o pipeline:
+
+1. Faz health check nos endpoints `/actuator/health` dos dois serviços — aguarda até 120s para o Cloud Run escalar a instância
+2. Executa os testes `@Tag("selenium")` apontando para as URLs reais do Cloud Run via `-Dselenium.base.url.produtos` e `-Dselenium.base.url.pedidos`
+3. Os testes Selenium navegam pela UI Thymeleaf como um usuário real: criam produtos, fazem pedidos, validam listagens e formulários
+4. O resultado é enviado como artefato (`selenium-dev`, `selenium-test`, `selenium-prod`) e continua com `continue-on-error: true` para não bloquear o pipeline por falha de E2E
+
+Isso garante que cada ambiente é validado funcionalmente logo após o deploy, antes da promoção ao próximo ambiente.
 
 ---
 
