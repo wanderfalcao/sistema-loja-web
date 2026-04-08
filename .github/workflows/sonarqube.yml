@@ -83,7 +83,6 @@ jobs:
             -Dsonar.exclusions="**/DataLoader.java,**/*Application.java,**/dto/**,**/mapper/**"
 
       - name: Resultado da análise
-        if: always()
         run: |
           echo "Relatório disponível em: http://localhost:9000/dashboard?id=sistema-loja-web"
           curl -sf -u admin:admin \
@@ -93,7 +92,11 @@ jobs:
           d = json.load(sys.stdin)
           status = d.get('projectStatus', {}).get('status', 'UNKNOWN')
           print(f'Quality Gate: {status}')
-          " || echo "Quality Gate ainda em processamento."
+          if status != 'OK':
+              print(f'::error title=Quality Gate::Status={status} — build bloqueado')
+              sys.exit(1)
+          print('::notice title=Quality Gate::OK — todos os critérios de qualidade passaram')
+          "
 
       - name: Resumo SonarQube
         if: always()
