@@ -120,6 +120,8 @@ jobs:
       id-token: write         # OIDC obrigatório
 
     steps:
+      - uses: actions/checkout@v4
+
       # OIDC: cada ambiente pode usar uma Service Account diferente,
       # com permissões restritas apenas ao Cloud Run do ambiente alvo.
       - name: Autenticar no GCP e configurar gcloud
@@ -196,9 +198,6 @@ jobs:
             'until curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
           echo "::notice title=Health Check Dev::Ambos os serviços respondem no Cloud Run dev"
 
-      - uses: actions/checkout@v4
-        if: steps.gcp-auth.outcome == 'success'
-
       - uses: actions/setup-java@v4
         if: steps.gcp-auth.outcome == 'success'
         with:
@@ -245,6 +244,8 @@ jobs:
       id-token: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Autenticar no GCP e configurar gcloud
         id: gcp-auth
         uses: ./.github/actions/gcp-setup
@@ -313,9 +314,6 @@ jobs:
                    curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
           echo "::notice title=Health Check Test::Todos os serviços em test respondem"
 
-      - uses: actions/checkout@v4
-        if: steps.gcp-auth.outcome == 'success'
-
       - uses: actions/setup-java@v4
         if: steps.gcp-auth.outcome == 'success'
         with:
@@ -363,6 +361,8 @@ jobs:
       id-token: write
 
     steps:
+      - uses: actions/checkout@v4
+
       # Em prod, a Service Account tem permissão apenas para o serviço de
       # produção — princípio do menor privilégio (configurado no GCP IAM).
       - name: Autenticar no GCP e configurar gcloud
@@ -432,9 +432,6 @@ jobs:
             'until curl -sf "${{ steps.deploy-produto.outputs.url }}/actuator/health" && \
                    curl -sf "${{ steps.deploy-pedido.outputs.url }}/actuator/health"; do sleep 5; done'
           echo "::notice title=Health Check Prod::Todos os serviços em produção respondem"
-
-      - uses: actions/checkout@v4
-        if: steps.gcp-auth.outcome == 'success'
 
       - uses: actions/setup-java@v4
         if: steps.gcp-auth.outcome == 'success'
