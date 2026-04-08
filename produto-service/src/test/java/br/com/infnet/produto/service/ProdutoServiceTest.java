@@ -411,4 +411,54 @@ class ProdutoServiceTest {
 
         assertThat(resultado.getPrecoComDesconto()).isNull();
     }
+
+    @Test
+    void deveLancarExcecaoAoCriarDTOSemCategoria() {
+        ProdutoRequest request = new ProdutoRequest(
+                "Monitor Sem Categoria", null, new BigDecimal("2500.00"), 10, true, null, null, null);
+
+        assertThatThrownBy(() -> service.criarDTO(request))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("Categoria");
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deveFiltrarSemCriterios() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        when(repository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(produto)));
+
+        Page<Produto> resultado = service.filtrar(null, null, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(repository).findAll(pageable);
+    }
+
+    @Test
+    void deveFiltrarPorCategoria() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        when(repository.findAllByCategoria(CategoriaProduto.MONITORES, pageable))
+                .thenReturn(new PageImpl<>(List.of(produto)));
+
+        Page<Produto> resultado = service.filtrar(null, CategoriaProduto.MONITORES, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(repository).findAllByCategoria(CategoriaProduto.MONITORES, pageable);
+    }
+
+    @Test
+    void deveFiltrarPorNome() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Produto produto = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("2500.00"));
+        when(repository.filtrarComNome("monitor", CategoriaProduto.MONITORES, pageable))
+                .thenReturn(new PageImpl<>(List.of(produto)));
+
+        Page<Produto> resultado = service.filtrar("Monitor", CategoriaProduto.MONITORES, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(repository).filtrarComNome("monitor", CategoriaProduto.MONITORES, pageable);
+    }
 }

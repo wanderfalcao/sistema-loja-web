@@ -109,18 +109,34 @@ O `DataLoader` popula produtos e pedidos de exemplo automaticamente em qualquer 
 
 ## Endpoints (via Gateway — :8080)
 
-| Método | Caminho                              | Descrição                     |
-|--------|--------------------------------------|-------------------------------|
-| GET    | /api/v1/produtos                     | Lista produtos paginado        |
-| POST   | /api/v1/produtos                     | Cadastra produto               |
-| GET    | /api/v1/produtos/{id}                | Busca por ID                   |
-| PUT    | /api/v1/produtos/{id}                | Atualiza produto               |
-| PATCH  | /api/v1/produtos/{id}/estoque        | Ajusta estoque (ENTRADA/SAIDA) |
-| GET    | /api/v1/pedidos                      | Lista pedidos paginado         |
-| POST   | /api/v1/pedidos                      | Cria pedido                    |
-| GET    | /api/v1/pedidos/{id}                 | Busca por ID                   |
-| PATCH  | /api/v1/pedidos/{id}/avancar         | Avança status                  |
-| PATCH  | /api/v1/pedidos/{id}/cancelar        | Cancela pedido                 |
+### Produtos
+
+| Método | Caminho                              | Descrição                                      |
+|--------|--------------------------------------|------------------------------------------------|
+| GET    | /api/v1/produtos                     | Lista produtos ativos (paginado)               |
+| POST   | /api/v1/produtos                     | Cadastra produto                               |
+| GET    | /api/v1/produtos/{id}                | Busca por ID                                   |
+| GET    | /api/v1/produtos/sku/{sku}           | Busca por SKU                                  |
+| PUT    | /api/v1/produtos/{id}                | Atualiza produto                               |
+| DELETE | /api/v1/produtos/{id}                | Remove produto (exige estoque zerado)          |
+| PATCH  | /api/v1/produtos/{id}/estoque        | Ajusta estoque (ENTRADA ou SAIDA)              |
+| PATCH  | /api/v1/produtos/{id}/promocao       | Ativa promoção com percentual e datas          |
+| DELETE | /api/v1/produtos/{id}/promocao       | Encerra promoção ativa                         |
+
+### Pedidos
+
+| Método | Caminho                              | Descrição                                      |
+|--------|--------------------------------------|------------------------------------------------|
+| GET    | /api/v1/pedidos                      | Lista pedidos (paginado)                       |
+| POST   | /api/v1/pedidos                      | Cria pedido                                    |
+| GET    | /api/v1/pedidos/{id}                 | Busca por ID                                   |
+| PUT    | /api/v1/pedidos/{id}                 | Atualiza pedido                                |
+| DELETE | /api/v1/pedidos/{id}                 | Remove pedido                                  |
+| POST   | /api/v1/pedidos/{id}/status          | Muda status (`?novoStatus=PROCESSANDO` etc.)   |
+| POST   | /api/v1/pedidos/{id}/contestar       | Contesta pedido concluído com motivo           |
+| POST   | /api/v1/pedidos/{id}/itens           | Adiciona item ao pedido (apenas PENDENTE)      |
+| DELETE | /api/v1/pedidos/{id}/itens/{itemId}  | Remove item do pedido (apenas PENDENTE)        |
+| GET    | /api/v1/pedidos/{id}/itens           | Lista itens do pedido                          |
 
 Documentação interativa: http://localhost:8080/swagger-ui.html (dropdown para alternar entre os serviços)
 
