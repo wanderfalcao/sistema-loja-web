@@ -9,8 +9,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -57,6 +62,17 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
         }
     }
 
+    /**
+     * Ajusta o estoque de um produto no produto-service.
+     * Erros de rede (ResourceAccessException) e erros 5xx são retentados até 3 vezes
+     * com backoff exponencial (500ms → 1s → 2s). Erros 4xx não são retentados
+     * pois indicam problema de negócio (produto não encontrado, estoque insuficiente).
+     */
+    @Retryable(
+        retryFor  = { ResourceAccessException.class, HttpServerErrorException.class },
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 500, multiplier = 2)
+    )
     @Override
     public void ajustarEstoque(UUID id, TipoOperacaoEstoque operacao, int quantidade) {
         String url = produtoServiceUrl + PRODUTOS_PATH + id + "/estoque";
@@ -64,12 +80,18 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
         try {
             restTemplate.patchForObject(url, request, Void.class);
         } catch (HttpClientErrorException e) {
+            // 4xx: erro de negócio — não retentar
             log.warn("Erro ao ajustar estoque do produto {}: {}", id, e.getMessage());
             throw new DomainException("Erro ao ajustar estoque: " + e.getMessage());
-        } catch (Exception e) {
-            log.warn("Falha ao contactar produto-service para ajuste de estoque: {}", e.getMessage());
-            throw new DomainException(MSG_SERVICO_INDISPONIVEL);
         }
+        // ResourceAccessException e HttpServerErrorException propagam para acionar retry
+    }
+
+    @Recover
+    public void ajustarEstoqueRecovery(Exception ex, UUID id, TipoOperacaoEstoque operacao, int quantidade) {
+        log.error("Falha ao ajustar estoque do produto {} após 3 tentativas — operacao={}, qtd={}",
+                  id, operacao, quantidade, ex);
+        throw new DomainException(MSG_SERVICO_INDISPONIVEL);
     }
 
     /** DTO interno para deserializar a resposta paginada de /api/v1/produtos. */
