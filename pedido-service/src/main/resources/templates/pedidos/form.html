@@ -45,60 +45,72 @@
             <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
         </div>
 
-        <!-- ── MODO CRIAÇÃO: seleção de produtos ──────────────────────────── -->
+        <!-- ── MODO CRIAÇÃO: grid de cards + carrinho lateral ───────────── -->
         <th:block th:if="${pedido == null}">
             <form th:action="@{/pedidos}" method="post" novalidate id="formNovoPedido">
 
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">
-                        Produtos <span class="text-danger">*</span>
-                        <small class="text-muted fw-normal ms-1">— selecione a quantidade de cada produto desejado</small>
-                    </label>
+                <div th:if="${#lists.isEmpty(produtos)}" class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Nenhum produto disponível. <a href="/produtos/novo">Cadastre um produto</a> primeiro.</span>
+                </div>
 
-                    <div th:if="${#lists.isEmpty(produtos)}" class="alert alert-warning d-flex align-items-center gap-2">
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        <span>Nenhum produto disponível. <a href="/produtos/novo">Cadastre um produto</a> primeiro.</span>
-                    </div>
+                <div th:unless="${#lists.isEmpty(produtos)}" class="row g-3 mb-4">
 
-                    <div th:unless="${#lists.isEmpty(produtos)}" class="table-responsive border rounded">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width:80px" class="ps-3">Qtd</th>
-                                    <th>Produto</th>
-                                    <th>SKU</th>
-                                    <th class="text-end pe-3">Preço Un.</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr th:each="p : ${produtos}">
-                                    <td class="ps-3">
-                                        <input type="hidden" name="produtoIds" th:value="${p.id}"/>
-                                        <input type="number"
-                                               name="quantidades"
-                                               min="0" max="99" value="0"
-                                               class="form-control form-control-sm qty-input"
-                                               th:attr="data-preco=${p.preco}, data-nome=${p.nome}"
-                                               style="width:65px"/>
-                                    </td>
-                                    <td class="fw-semibold" th:text="${p.nome}"></td>
-                                    <td class="font-monospace text-muted small" th:text="${p.sku}"></td>
-                                    <td class="text-end pe-3"
-                                        th:text="${'R$ ' + #numbers.formatDecimal(p.preco, 1, 'POINT', 2, 'COMMA')}"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Resumo auto-calculado -->
-                    <div class="d-flex align-items-start gap-4 mt-3 p-3 bg-light rounded border" id="resumo-painel">
-                        <div class="flex-grow-1">
-                            <small class="text-muted d-block mb-1">Itens selecionados</small>
-                            <span id="resumo-descricao" class="small text-secondary">Nenhum item selecionado</span>
+                    <!-- Catálogo (65%) -->
+                    <div class="col-md-8">
+                        <div class="search-wrap">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="busca-produto"
+                                   class="form-control form-control-sm"
+                                   placeholder="Buscar produto por nome ou SKU..."
+                                   oninput="filtrarProdutos(this.value)"/>
                         </div>
-                        <div class="text-end flex-shrink-0">
-                            <small class="text-muted d-block mb-1">Total estimado</small>
-                            <strong id="resumo-total" class="text-success fs-5">R$ 0,00</strong>
+
+                        <div class="produto-grid" id="grade-produtos">
+                            <div class="produto-card" th:each="p : ${produtos}"
+                                 th:attr="data-nome=${p.nome}, data-sku=${p.sku}">
+
+                                <div th:if="${p.imagemUrl != null and !#strings.isEmpty(p.imagemUrl)}">
+                                    <img class="card-img" th:src="${p.imagemUrl}"
+                                         th:alt="${p.nome}" onerror="this.parentElement.innerHTML='<div class=\'card-img-placeholder\'><i class=\'bi bi-image\'></i></div>'"/>
+                                </div>
+                                <div th:if="${p.imagemUrl == null or #strings.isEmpty(p.imagemUrl)}"
+                                     class="card-img-placeholder">
+                                    <i class="bi bi-box-seam"></i>
+                                </div>
+
+                                <div class="card-nome" th:text="${p.nome}"></div>
+                                <div class="card-sku" th:text="${p.sku}"></div>
+                                <div class="card-preco"
+                                     th:text="${'R$ ' + #numbers.formatDecimal(p.preco, 1, 'POINT', 2, 'COMMA')}"></div>
+
+                                <input type="hidden" name="produtoIds" th:value="${p.id}"/>
+                                <div class="qty-stepper">
+                                    <button type="button" onclick="ajustarQty(this, -1)">−</button>
+                                    <input type="number" name="quantidades"
+                                           min="0" max="99" value="0"
+                                           class="qty-input"
+                                           th:attr="data-preco=${p.preco}, data-nome=${p.nome}"
+                                           oninput="atualizarCarrinho()"/>
+                                    <button type="button" onclick="ajustarQty(this, 1)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Carrinho (35%) -->
+                    <div class="col-md-4">
+                        <div class="cart-panel">
+                            <div class="cart-header">
+                                <i class="bi bi-cart3"></i>Carrinho
+                            </div>
+                            <div class="cart-body" id="cart-items">
+                                <p class="cart-vazio" id="cart-vazio-msg">Nenhum item selecionado</p>
+                            </div>
+                            <div class="cart-footer">
+                                <span class="cart-total-label">Total estimado</span>
+                                <span class="cart-total-valor" id="cart-total">R$ 0,00</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -171,25 +183,68 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>function toggleSidebar(){document.querySelector('.sidebar').classList.toggle('open');}</script>
 <script>
-    document.querySelectorAll('.qty-input').forEach(function(inp) {
-        inp.addEventListener('input', atualizarResumo);
-    });
+    function ajustarQty(btn, delta) {
+        var input = btn.parentElement.querySelector('input[type="number"]');
+        var novoValor = Math.max(0, Math.min(99, (parseInt(input.value) || 0) + delta));
+        input.value = novoValor;
+        atualizarCarrinho();
+        var card = btn.closest('.produto-card');
+        if (card) card.classList.toggle('selecionado', novoValor > 0);
+    }
 
-    function atualizarResumo() {
-        var total = 0;
-        var partes = [];
+    function atualizarCarrinho() {
+        var itens = [];
+        var total  = 0;
+
         document.querySelectorAll('.qty-input').forEach(function(inp) {
             var qty = parseInt(inp.value) || 0;
             if (qty > 0) {
                 var preco = parseFloat(inp.dataset.preco) || 0;
-                total += qty * preco;
-                partes.push(qty + 'x ' + inp.dataset.nome);
+                var sub   = qty * preco;
+                total += sub;
+                itens.push({ nome: inp.dataset.nome, qty: qty, preco: preco, sub: sub });
             }
+            var card = inp.closest('.produto-card');
+            if (card) card.classList.toggle('selecionado', qty > 0);
         });
-        var totalFmt = 'R$ ' + total.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+,)/g, '$1.');
-        document.getElementById('resumo-total').textContent = totalFmt;
-        document.getElementById('resumo-descricao').textContent =
-            partes.length ? partes.join(', ') : 'Nenhum item selecionado';
+
+        renderCarrinho(itens, total);
+    }
+
+    function renderCarrinho(itens, total) {
+        var container = document.getElementById('cart-items');
+        var vazioMsg  = document.getElementById('cart-vazio-msg');
+
+        if (itens.length === 0) {
+            container.innerHTML = '<p class="cart-vazio" id="cart-vazio-msg">Nenhum item selecionado</p>';
+        } else {
+            container.innerHTML = itens.map(function(it) {
+                return '<div class="cart-item">' +
+                    '<div><div class="cart-item-nome">' + escHtml(it.nome) + '</div>' +
+                    '<div class="cart-item-info">' + it.qty + ' × R$ ' + fmt(it.preco) + '</div></div>' +
+                    '<div class="cart-item-subtotal">R$ ' + fmt(it.sub) + '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        document.getElementById('cart-total').textContent = 'R$ ' + fmt(total);
+    }
+
+    function filtrarProdutos(termo) {
+        var t = termo.trim().toLowerCase();
+        document.querySelectorAll('#grade-produtos .produto-card').forEach(function(card) {
+            var nome = (card.dataset.nome || '').toLowerCase();
+            var sku  = (card.dataset.sku  || '').toLowerCase();
+            card.style.display = (!t || nome.includes(t) || sku.includes(t)) ? '' : 'none';
+        });
+    }
+
+    function fmt(v) {
+        return v.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+,)/g, '$1.');
+    }
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 </script>
 </body>

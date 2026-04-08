@@ -144,10 +144,10 @@
                 </div>
                 <div class="card-body">
 
-                    <div th:if="${pedido.status.name() == 'CONTESTADO' and !#strings.isEmpty(pedido.observacao)}"
+                    <div th:if="${pedido.status.name() == 'CONTESTADO' and !#strings.isEmpty(pedido.motivoContestacao)}"
                          class="contestacao-box">
                         <div class="ctitle"><i class="bi bi-exclamation-triangle me-1"></i>Motivo da contestação</div>
-                        <div class="cmotivo" th:text="${pedido.observacao}"></div>
+                        <div class="cmotivo" th:text="${pedido.motivoContestacao}"></div>
                     </div>
 
                     <div class="mb-3">
@@ -156,8 +156,7 @@
                              th:text="${'R$ ' + #numbers.formatDecimal(pedido.valor.quantia, 1, 'POINT', 2, 'COMMA')}"></div>
                     </div>
 
-                    <div class="mb-3"
-                         th:if="${!#strings.isEmpty(pedido.observacao) and pedido.status.name() != 'CONTESTADO'}">
+                    <div class="mb-3" th:if="${!#strings.isEmpty(pedido.observacao)}">
                         <div class="info-label">Observação</div>
                         <div class="info-value" th:text="${pedido.observacao}"></div>
                     </div>
