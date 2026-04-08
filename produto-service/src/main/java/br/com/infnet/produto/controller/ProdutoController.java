@@ -3,6 +3,7 @@ package br.com.infnet.produto.controller;
 import br.com.infnet.produto.domain.CategoriaProduto;
 import br.com.infnet.produto.domain.Produto;
 import br.com.infnet.produto.domain.exception.ProdutoNaoEncontradoException;
+import br.com.infnet.produto.dto.ProdutoRequest;
 import br.com.infnet.produto.service.ProdutoService;
 import br.com.infnet.shared.exception.DomainException;
 import org.springframework.data.domain.Page;
@@ -107,7 +108,11 @@ public class ProdutoController {
                             Model model,
                             RedirectAttributes attrs) {
         try {
-            service.cadastrar(nome, preco, descricao, estoque, categoria, imagemUrl);
+            ProdutoRequest request = ProdutoRequest.builder()
+                    .nome(nome).preco(preco).descricao(descricao)
+                    .estoque(estoque).ativo(ativo).categoria(categoria).imagemUrl(imagemUrl)
+                    .build();
+            service.criarDTO(request);
             attrs.addFlashAttribute("sucesso", "Produto cadastrado com sucesso.");
             return "redirect:/produtos";
         } catch (DomainException e) {
@@ -138,7 +143,11 @@ public class ProdutoController {
                             Model model,
                             RedirectAttributes attrs) {
         try {
-            service.atualizar(id, nome, preco, descricao, estoque, ativo, categoria, imagemUrl);
+            ProdutoRequest request = ProdutoRequest.builder()
+                    .nome(nome).preco(preco).descricao(descricao)
+                    .estoque(estoque).ativo(ativo).categoria(categoria).imagemUrl(imagemUrl)
+                    .build();
+            service.atualizarDTO(id, request);
             attrs.addFlashAttribute("sucesso", "Produto atualizado com sucesso.");
             return "redirect:/produtos";
         } catch (DomainException e) {

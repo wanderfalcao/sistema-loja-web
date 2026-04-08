@@ -31,18 +31,6 @@ public class ProdutoService implements CrudService<Produto, UUID> {
     private final ProdutoRepository repository;
     private final ProdutoMapper mapper;
 
-    public Produto cadastrar(String nome, BigDecimal preco,
-                              String descricao, Integer estoque,
-                              CategoriaProduto categoria, String imagemUrl) {
-        if (categoria == null)
-            throw new DomainException("Categoria é obrigatória para cadastrar um produto.");
-        Produto p = ProdutoFactory.criar(nome, preco, categoria);
-        if (descricao != null && !descricao.isBlank()) p.definirDescricao(descricao);
-        if (estoque != null && estoque > 0)            p.definirEstoque(Quantidade.de(estoque));
-        if (imagemUrl != null && !imagemUrl.isBlank()) p.definirImagemUrl(imagemUrl.trim());
-        return repository.save(p);
-    }
-
     @Override
     @Transactional(readOnly = true)
     public Produto buscarPorId(UUID id) {
@@ -54,19 +42,6 @@ public class ProdutoService implements CrudService<Produto, UUID> {
     @Transactional(readOnly = true)
     public List<Produto> listarTodos() {
         return repository.findAll();
-    }
-
-    public Produto atualizar(UUID id, String nome, BigDecimal preco,
-                              String descricao, Integer estoque, Boolean ativo,
-                              CategoriaProduto categoria, String imagemUrl) {
-        Produto produto = buscarPorId(id);
-        produto.atualizar(nome, produto.getSku(), preco);
-        produto.definirDescricao(descricao);
-        if (estoque != null) produto.definirEstoque(Quantidade.de(estoque));
-        produto.alterarAtivo(ativo);
-        produto.definirCategoria(categoria);
-        produto.definirImagemUrl(imagemUrl != null && !imagemUrl.isBlank() ? imagemUrl.trim() : null);
-        return repository.save(produto);
     }
 
     @Override
