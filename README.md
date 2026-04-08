@@ -151,9 +151,15 @@ start pedido-service\target\site\jacoco\index.html
 Os testes Selenium usam `@Tag("selenium")` e ficam fora do ciclo padrão. Para rodá-los é preciso ter um servidor subindo e Chrome instalado:
 
 ```bash
+# Headless (padrão — mesmo comportamento do CI)
 mvn test -pl pedido-service -Dgroups=selenium
 mvn test -pl produto-service -Dgroups=selenium
+
+# Com browser visível (útil para depurar falhas localmente)
+mvn test -pl pedido-service -Dgroups=selenium -Dselenium.headless=false
 ```
+
+A extensão `SeleniumExtension` implementa `TestWatcher` e captura screenshot automaticamente em `target/screenshots/{Classe}/{metodo}.png` quando um teste falha — sem necessidade de configuração adicional.
 
 ## Workflows GitHub Actions
 
@@ -235,10 +241,25 @@ As entidades de domínio não têm setters públicos. Para mudar o estado de um 
 
 Quando `ativarPromocao()` é chamado, a validação do desconto usa o método da categoria — sem nenhum switch ou if.
 
+### motivoContestacao separado de observacao
+
+Um pedido tem dois campos de texto distintos: `observacao` (preenchida na criação, editável enquanto pendente) e `motivoContestacao` (preenchido apenas ao contestar). Antes, o motivo sobrescrevia a observação original, perdendo a informação do cliente. Agora `contestar(String motivo)` grava em `motivoContestacao` e nunca toca em `observacao`. O `PedidoResponse` expõe os dois campos. A tela de detalhe exibe o motivo em um bloco destacado apenas quando o pedido está CONTESTADO.
+
+### Resiliência na comunicação entre serviços
+
+O `ProdutoServiceClientImpl.ajustarEstoque()` usa `@Retryable` (3 tentativas, backoff 500 ms × 2) para erros de rede (`ResourceAccessException`) e erros 5xx — erros 4xx não são retentados porque indicam problema de negócio. O `@Recover` converte a falha final em `DomainException`.
+
+O `EstoqueOrquestrador` implementa o padrão Saga compensatório: para cada item processado com sucesso que seja seguido de uma falha, a operação inversa é enviada ao produto-service. Falhas na compensação são registradas em log para intervenção manual — não lançam exceção para não mascarar o erro original.
+
+### Interface de criação de pedidos
+
+O formulário de novo pedido usa um layout de duas colunas: à esquerda, uma grade de cards com campo de busca em tempo real (filtro por nome e SKU); à direita, um painel de carrinho que atualiza a cada alteração de quantidade com total estimado. O grid adapta o número de colunas ao espaço disponível e marca os cards selecionados visualmente. A busca funciona só no cliente, sem requisição ao servidor.
+
 ### Regras de negócio adicionadas
 
 - Promoção com datas precisa durar pelo menos 1 hora (`Promocao.criar`).
 - Um pedido aceita no máximo 20 itens (`PedidoService.adicionarItem`).
+- Produto ativo com estoque zero não pode ser cadastrado nem atualizado (`ProdutoService.validarAtivacaoComEstoque`).
 
 ### CI/CD
 
@@ -416,6 +437,7 @@ Cada serviço escala para zero instâncias quando ocioso (dev/test: 0–2, prod:
 | **MockMvc** | Spring MVC Test | Controladores MVC e REST: payloads, códigos HTTP, redirecionamentos, flash attributes |
 | **Integração** | WireMock + Testcontainers | `pedido-service` chamando `produto-service` simulado em cenários de falha (timeout, 404, serviço indisponível) com PostgreSQL real |
 | **Property-based (fuzz)** | jqwik | Centenas de entradas geradas automaticamente validam invariantes. Inclui tentativas de SQL injection e XSS nos campos de texto — nenhuma deve lançar NullPointerException ou vazar dados |
+| **Selenium E2E** | Selenium 4 + ChromeDriver | Navega pela UI como um usuário real. Inclui cenários de preservação de observação ao contestar, exibição do motivo de contestação no detalhe, e rejeição de produto ativo sem estoque. `SeleniumExtension` captura screenshot em falha. Headless por padrão, modo visual via `-Dselenium.headless=false` |
 | **Cobertura mínima** | JaCoCo | 90% de linhas cobertas. Build falha automaticamente se não atingir |
 
 #### Análise estática e dinâmica (executam no `security.yml`)
