@@ -120,6 +120,16 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Spring Retry — retry com backoff exponencial em chamadas ao produto-service -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- Apache HttpClient 5 — habilita suporte a PATCH no RestTemplate -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
@@ -258,4 +268,22 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- Profile ativado automaticamente quando -Dgroups=selenium é passado.
+         Zera excludedGroups para que o tag não seja bloqueado pelo filtro padrão.
+         Aponta o banco de teste para o container Docker local (porta 5434).     -->
+    <profiles>
+        <profile>
+            <id>selenium-local</id>
+            <activation>
+                <property>
+                    <name>groups</name>
+                    <value>selenium</value>
+                </property>
+            </activation>
+            <properties>
+                <surefire.excludedGroups></surefire.excludedGroups>
+            </properties>
+        </profile>
+    </profiles>
 </project>
