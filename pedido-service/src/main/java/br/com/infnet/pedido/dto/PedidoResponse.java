@@ -31,8 +31,11 @@ public class PedidoResponse {
     @Schema(description = "Status atual do pedido")
     private StatusPedido status;
 
-    @Schema(description = "Observação ou motivo de contestação")
+    @Schema(description = "Observação livre do pedido")
     private String observacao;
+
+    @Schema(description = "Motivo informado pelo cliente ao contestar o pedido")
+    private String motivoContestacao;
 
     @Schema(description = "Data e hora de criação")
     private LocalDateTime dataCriacao;

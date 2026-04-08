@@ -19,4 +19,5 @@ public class ProdutoInfo {
     private BigDecimal preco;
     private boolean ativo;
     private int estoque;
+    private String imagemUrl;
 }

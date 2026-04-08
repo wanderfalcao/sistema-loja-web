@@ -3,6 +3,7 @@ package br.com.infnet.pedido.domain;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -23,6 +24,8 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 public class Pedido {
+
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(Pedido.class);
 
     public static final int        MAX_DESCRICAO  = 255;
     public static final int        MAX_OBSERVACAO = 500;
@@ -45,6 +48,9 @@ public class Pedido {
 
     @Column(length = MAX_OBSERVACAO, columnDefinition = "varchar(500)")
     private String observacao;
+
+    @Column(name = "motivo_contestacao", length = MAX_OBSERVACAO, columnDefinition = "varchar(500)")
+    private String motivoContestacao;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -118,18 +124,21 @@ public class Pedido {
             String desc = itens.stream()
                     .map(i -> i.getQuantidade().inteiro() + "x " + i.getNomeProduto())
                     .collect(Collectors.joining(", "));
-            this.descricao = desc.length() > MAX_DESCRICAO
-                    ? desc.substring(0, MAX_DESCRICAO - 3) + "..."
-                    : desc;
+            if (desc.length() > MAX_DESCRICAO) {
+                log.warn("Pedido {}: descrição truncada de {} para {} chars", id, desc.length(), MAX_DESCRICAO);
+                this.descricao = desc.substring(0, MAX_DESCRICAO - 3) + "...";
+            } else {
+                this.descricao = desc;
+            }
         }
         this.dataAtualizacao = LocalDateTime.now();
     }
 
-    /** Marca o pedido como contestado com o motivo registrado. */
+    /** Marca o pedido como contestado registrando o motivo em campo dedicado. A observação original é preservada. */
     public void contestar(String motivo) {
-        this.status          = StatusPedido.CONTESTADO;
-        this.observacao      = motivo;
-        this.dataAtualizacao = LocalDateTime.now();
+        this.status              = StatusPedido.CONTESTADO;
+        this.motivoContestacao   = motivo;
+        this.dataAtualizacao     = LocalDateTime.now();
     }
 
     // ── Query methods ────────────────────────────────────────────────────────
