@@ -4,6 +4,7 @@ import br.com.infnet.controller.GlobalExceptionHandler;
 import br.com.infnet.produto.domain.Produto;
 import br.com.infnet.produto.domain.Sku;
 import br.com.infnet.produto.domain.exception.ProdutoNaoEncontradoException;
+import br.com.infnet.produto.dto.ProdutoRequest;
 import br.com.infnet.produto.dto.ProdutoResponse;
 import br.com.infnet.produto.service.ProdutoService;
 import br.com.infnet.shared.exception.DomainException;
@@ -71,8 +72,8 @@ class ProdutoControllerTest {
     })
     @WithMockUser
     void deveCadastrarProdutoERedirecionarParaLista(String nome, BigDecimal preco) throws Exception {
-        when(service.cadastrar(eq(nome.trim()), eq(preco), any(), any(), any(), any()))
-                .thenReturn(Produto.novo(nome.trim(), Sku.de("SKU-AUTO"), preco));
+        when(service.criarDTO(any(ProdutoRequest.class)))
+                .thenReturn(ProdutoResponse.builder().nome(nome.trim()).build());
 
         mockMvc.perform(post("/produtos")
                         .with(csrf())
@@ -125,8 +126,8 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveAtualizarProdutoERedirecionarParaLista() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.atualizar(eq(id), eq("Monitor Atualizado"), any(BigDecimal.class), any(), any(), any(), any(), any()))
-                .thenReturn(Produto.novo("Monitor Atualizado", Sku.de("MON-ATU-001"), new BigDecimal("3000.0")));
+        when(service.atualizarDTO(eq(id), any(ProdutoRequest.class)))
+                .thenReturn(ProdutoResponse.builder().nome("Monitor Atualizado").build());
 
         mockMvc.perform(post("/produtos/{id}", id)
                         .with(csrf())
@@ -162,7 +163,7 @@ class ProdutoControllerTest {
     @Test
     @WithMockUser
     void deveExibirFormComErroQuandoCadastrarFalha() throws Exception {
-        when(service.cadastrar(anyString(), any(BigDecimal.class), any(), any(), any(), any()))
+        when(service.criarDTO(any(ProdutoRequest.class)))
                 .thenThrow(new DomainException("Nome obrigatorio"));
 
         mockMvc.perform(post("/produtos")
@@ -178,7 +179,7 @@ class ProdutoControllerTest {
     @WithMockUser
     void deveExibirFormComErroQuandoAtualizarFalha() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.atualizar(eq(id), anyString(), any(BigDecimal.class), any(), any(), any(), any(), any()))
+        when(service.atualizarDTO(eq(id), any(ProdutoRequest.class)))
                 .thenThrow(new DomainException("Preco deve ser maior que zero"));
 
         mockMvc.perform(post("/produtos/{id}", id)

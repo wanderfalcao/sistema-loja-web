@@ -55,6 +55,11 @@ public class ProdutoFormPage extends BasePage {
         campoNome.sendKeys(nome);
         campoPreco.clear();
         campoPreco.sendKeys(preco);
+        // estoque mínimo 1 para passar a validação "produto ativo deve ter estoque > 0"
+        if (campoEstoque != null) {
+            campoEstoque.clear();
+            campoEstoque.sendKeys("1");
+        }
         selecionarPrimeiraCategoria();
         WebElement btn = driver.findElement(By.id("btn-salvar"));
         clicarComJs(btn);
@@ -81,6 +86,30 @@ public class ProdutoFormPage extends BasePage {
             campoEstoque.sendKeys(estoque);
         }
         selecionarPrimeiraCategoria();
+        WebElement btn = driver.findElement(By.id("btn-salvar"));
+        clicarComJs(btn);
+        wait.until(ExpectedConditions.stalenessOf(btn));
+        return new ProdutoListPage(driver);
+    }
+
+    /**
+     * Preenche com ativo=false e estoque=0 para criar um produto deletável (sem estoque).
+     */
+    /**
+     * Cria produto com ativo=false e estoque=0 para poder deletar depois.
+     * Converte o checkbox ativo em hidden com value=false para forçar envio ao Spring MVC.
+     */
+    public ProdutoListPage preencherESalvarDeletavel(String nome, String preco) {
+        aguardarElemento(By.id("nome"));
+        ((JavascriptExecutor) driver).executeScript(
+                "document.getElementById('nome').value = arguments[0];" +
+                "document.getElementById('preco').value = arguments[1];" +
+                "document.getElementById('estoque').value = '0';" +
+                "var cb = document.getElementById('ativo');" +
+                "if (cb) { cb.type='hidden'; cb.value='false'; }" +
+                "var s = document.getElementById('categoria');" +
+                "if (s && s.options.length > 1) s.selectedIndex = 1;",
+                nome, preco);
         WebElement btn = driver.findElement(By.id("btn-salvar"));
         clicarComJs(btn);
         wait.until(ExpectedConditions.stalenessOf(btn));
@@ -130,5 +159,23 @@ public class ProdutoFormPage extends BasePage {
     public String getValorPreco() {
         aguardarElemento(By.id("preco"));
         return campoPreco.getAttribute("value");
+    }
+
+    /**
+     * Submete o formulário com ativo=true e estoque=0 via JS para contornar a validação HTML5,
+     * esperando a mensagem de erro de negócio ("Produto ativo deve ter estoque maior que zero").
+     */
+    public ProdutoFormPage submeterComAtivoESemEstoque(String nome, String preco) {
+        aguardarElemento(By.id("nome"));
+        ((JavascriptExecutor) driver).executeScript(
+                "document.getElementById('nome').value = arguments[0];" +
+                "document.getElementById('preco').value = arguments[1];" +
+                "document.getElementById('estoque').value = '0';" +
+                "var s = document.getElementById('categoria');" +
+                "if (s && s.options.length > 1) s.selectedIndex = 1;" +
+                "document.querySelector('form').submit();",
+                nome, preco);
+        aguardarElemento(By.id("mensagem-erro"));
+        return new ProdutoFormPage(driver);
     }
 }

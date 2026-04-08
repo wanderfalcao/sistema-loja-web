@@ -6,6 +6,7 @@ import br.com.infnet.produto.selenium.pages.ProdutoFormPage;
 import br.com.infnet.produto.selenium.pages.ProdutoListPage;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.openqa.selenium.WebDriver;
@@ -22,9 +23,15 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Testes E2E com Selenium headless — executar com: mvn test -Dgroups=selenium
+ * Testes E2E com Selenium — headless por padrão, com opção de modo visual.
+ *
+ * Executar:
+ *   mvn test -Dgroups=selenium -Dspring.profiles.active=test
+ * Para modo com browser visível (debug local):
+ *   mvn test -Dgroups=selenium -Dselenium.headless=false
  */
 @Tag("selenium")
+@ExtendWith(SeleniumExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ProdutoSeleniumTest {
@@ -60,15 +67,13 @@ class ProdutoSeleniumTest {
     @BeforeAll
     static void setUpDriver() {
         WebDriverManager.chromedriver().setup();
+        boolean headless = !"false".equalsIgnoreCase(System.getProperty("selenium.headless", "true"));
         ChromeOptions options = new ChromeOptions();
-        options.addArguments(
-                "--headless=new",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--window-size=1280,800"
-        );
+        if (headless) options.addArguments("--headless=new");
+        options.addArguments("--no-sandbox", "--disable-dev-shm-usage",
+                "--disable-gpu", "--window-size=1280,800");
         driver = new ChromeDriver(options);
+        SeleniumExtension.registerDriver(driver);
     }
 
     @AfterAll
@@ -105,6 +110,13 @@ class ProdutoSeleniumTest {
         abrirLista().clicarNovoProduto().preencherESalvar(nome, preco);
         createdNomes.add(nome);
         // Após o redirect do form, navegar para a lista completa (sem paginação)
+        driver.get(baseUrl() + "/produtos?size=200");
+        return new ProdutoListPage(driver);
+    }
+
+    private ProdutoListPage criarProdutoDeletavel(String nome, String preco) {
+        abrirLista().clicarNovoProduto().preencherESalvarDeletavel(nome, preco);
+        createdNomes.add(nome);
         driver.get(baseUrl() + "/produtos?size=200");
         return new ProdutoListPage(driver);
     }
@@ -157,7 +169,7 @@ class ProdutoSeleniumTest {
     @Test
     @Order(4)
     void deveExcluirProdutoEDecrementarContagem() {
-        ProdutoListPage lista = criarProdutoNaLista("Produto para Excluir" + SUFFIX, "10.00");
+        ProdutoListPage lista = criarProdutoDeletavel("Produto para Excluir" + SUFFIX, "10.00");
         int antes = lista.contarProdutos();
 
         lista = lista.clicarExcluirPorNome("Produto para Excluir" + SUFFIX);
@@ -295,5 +307,16 @@ class ProdutoSeleniumTest {
         assertThat(pageSource).doesNotContain("java.sql");
         assertThat(pageSource).doesNotContain("HibernateException");
         assertThat(lista.contarProdutos()).isGreaterThan(0);
+    }
+
+    @Test
+    @Order(16)
+    void deveRejeitarProdutoAtivoComEstoqueZero() {
+        ProdutoFormPage form = abrirLista().clicarNovoProduto();
+
+        form = form.submeterComAtivoESemEstoque("Produto Sem Estoque" + SUFFIX, "99.90");
+
+        assertThat(form.erroEstaVisivel()).isTrue();
+        assertThat(form.obterMensagemDeErro()).contains("Produto ativo deve ter estoque maior que zero");
     }
 }

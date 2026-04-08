@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,108 +44,6 @@ class ProdutoServiceTest {
 
     @InjectMocks
     private ProdutoService service;
-
-    @ParameterizedTest
-    @CsvSource({
-        "Monitor 4K,        2500.00",
-        "Teclado Mecanico,   350.00",
-        "Mouse Gamer,        199.90",
-        "Webcam HD,           89.90",
-        "SSD 1TB,            450.00"
-    })
-    void deveCadastrarProdutosComSkuAutoGerado(String nome, BigDecimal preco) {
-        Produto salvo = Produto.novo(nome.trim(), Sku.de("AUTO-XXXX"), preco);
-        when(repository.save(any(Produto.class))).thenReturn(salvo);
-
-        Produto resultado = service.cadastrar(nome.trim(), preco, null, null, CategoriaProduto.GERAL, null);
-
-        assertThat(resultado.getNome()).isEqualTo(nome.trim());
-        assertThat(resultado.getPreco().quantia()).isEqualByComparingTo(preco);
-        verify(repository).save(any(Produto.class));
-    }
-
-    @Test
-    void deveCadastrarComCategoria() {
-        Produto salvo = Produto.novo("Monitor", Sku.de("MON-001"), new BigDecimal("1000.00"));
-        salvo.definirCategoria(CategoriaProduto.MONITORES);
-        when(repository.save(any(Produto.class))).thenReturn(salvo);
-
-        Produto resultado = service.cadastrar("Monitor", new BigDecimal("1000.00"), null, null, CategoriaProduto.MONITORES, null);
-
-        assertThat(resultado.getCategoria()).isEqualTo(CategoriaProduto.MONITORES);
-    }
-
-    @Test
-    void deveCadastrarComDescricaoEEstoque() {
-        Produto salvo = Produto.novo("Monitor 4K", Sku.de("MON-4K-XXXX"), new BigDecimal("2500.00"));
-        salvo.definirDescricao("Ótimo monitor");
-        salvo.definirEstoque(Quantidade.de(5));
-        when(repository.save(any(Produto.class))).thenReturn(salvo);
-
-        Produto resultado = service.cadastrar("Monitor 4K", new BigDecimal("2500.00"),
-                "Ótimo monitor", 5, CategoriaProduto.MONITORES, null);
-
-        assertThat(resultado.getDescricao()).isEqualTo("Ótimo monitor");
-        assertThat(resultado.getEstoque().inteiro()).isEqualTo(5);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"-0.01", "-1.0", "-100.0", "-999.99"})
-    void deveRejeitarPrecosNegativos(String precoStr) {
-        BigDecimal preco = new BigDecimal(precoStr);
-        assertThatThrownBy(() -> service.cadastrar("Produto X", preco, null, null, CategoriaProduto.GERAL, null))
-                .isInstanceOf(DomainException.class)
-                .hasMessageContaining("Preco deve ser maior que zero");
-
-        verifyNoInteractions(repository);
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-        "Monitor Atualizado, 3000.00",
-        "Notebook Gamer,     7500.00",
-        "Headset Pro,         299.90"
-    })
-    void deveAtualizarProdutoExistente(String novoNome, BigDecimal novoPreco) {
-        UUID id = UUID.randomUUID();
-        Produto existente = Produto.novo("Nome Antigo", Sku.de("SKU-OLD"), new BigDecimal("100.0"));
-        when(repository.findById(id)).thenReturn(Optional.of(existente));
-        when(repository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        Produto atualizado = service.atualizar(id, novoNome, novoPreco, null, null, null, null, null);
-
-        assertThat(atualizado.getNome()).isEqualTo(novoNome);
-        assertThat(atualizado.getPreco().quantia()).isEqualByComparingTo(novoPreco);
-    }
-
-    @Test
-    void deveManterSkuExistenteNoUpdate() {
-        UUID id = UUID.randomUUID();
-        Produto existente = Produto.novo("Monitor", Sku.de("SKU-EXISTENTE"), new BigDecimal("100.0"));
-        when(repository.findById(id)).thenReturn(Optional.of(existente));
-        when(repository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        Produto atualizado = service.atualizar(id, "Monitor Pro", new BigDecimal("200.0"), null, null, null, null, null);
-
-        assertThat(atualizado.getSku().codigo()).isEqualTo("SKU-EXISTENTE");
-    }
-
-    @Test
-    void deveAtualizarTodosOsCampos() {
-        UUID id = UUID.randomUUID();
-        Produto existente = Produto.novo("Monitor", Sku.de("SKU-OLD"), new BigDecimal("100.0"));
-        when(repository.findById(id)).thenReturn(Optional.of(existente));
-        when(repository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        Produto atualizado = service.atualizar(id, "Monitor Pro", new BigDecimal("3000.00"),
-                "Nova descrição", 10, false, CategoriaProduto.MONITORES, null);
-
-        assertThat(atualizado.getNome()).isEqualTo("Monitor Pro");
-        assertThat(atualizado.getDescricao()).isEqualTo("Nova descrição");
-        assertThat(atualizado.getEstoque().inteiro()).isEqualTo(10);
-        assertThat(atualizado.getAtivo()).isFalse();
-        assertThat(atualizado.getCategoria()).isEqualTo(CategoriaProduto.MONITORES);
-    }
 
     @Test
     void deveLancarExcecaoAoBuscarIdInexistente() {

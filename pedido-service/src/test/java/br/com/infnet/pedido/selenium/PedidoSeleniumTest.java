@@ -9,6 +9,7 @@ import br.com.infnet.pedido.selenium.pages.PedidoFormPage;
 import br.com.infnet.pedido.selenium.pages.PedidoListPage;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -32,13 +33,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 /**
- * Testes E2E com Selenium headless — executar com:
+ * Testes E2E com Selenium — headless por padrão, com opção de modo visual.
+ *
+ * Executar:
  *   mvn test -Dgroups=selenium -DexcludedGroups= -Dspring.profiles.active=test
+ * Para modo com browser visível (debug local):
+ *   mvn test -Dgroups=selenium -Dselenium.headless=false
  *
  * ProdutoServiceClient é mockado para retornar um produto fixo,
- * garantindo que o formulário de criação exiba a tabela de seleção.
+ * garantindo que o formulário de criação exiba os cards de produto.
  */
 @Tag("selenium")
+@ExtendWith(SeleniumExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PedidoSeleniumTest {
@@ -59,7 +65,7 @@ class PedidoSeleniumTest {
 
     static final ProdutoInfo PRODUTO_MOCK = new ProdutoInfo(
             UUID.randomUUID(), "Produto Teste Selenium", "SEL-001",
-            new BigDecimal("50.00"), true, 10);
+            new BigDecimal("50.00"), true, 10, null);
 
     /** Rastreia IDs dos pedidos criados em cada teste para cleanup em remote mode. */
     private final List<String> createdIds = new ArrayList<>();
@@ -67,11 +73,13 @@ class PedidoSeleniumTest {
     @BeforeAll
     static void setUpDriver() {
         WebDriverManager.chromedriver().setup();
+        boolean headless = !"false".equalsIgnoreCase(System.getProperty("selenium.headless", "true"));
         ChromeOptions opts = new ChromeOptions();
-        opts.addArguments("--headless=new", "--no-sandbox",
-                "--disable-dev-shm-usage", "--window-size=1280,720");
+        if (headless) opts.addArguments("--headless=new");
+        opts.addArguments("--no-sandbox", "--disable-dev-shm-usage", "--window-size=1280,720");
         driver = new ChromeDriver(opts);
         wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        SeleniumExtension.registerDriver(driver);
     }
 
     @AfterAll
@@ -267,5 +275,36 @@ class PedidoSeleniumTest {
         driver.get(baseUrl() + "/pedidos?size=200&busca=Alpha");
         wait.until(ExpectedConditions.presenceOfElementLocated(By.id("tabelaPedidos")));
         assertThat(driver.getPageSource()).containsIgnoringCase("Alpha");
+    }
+
+    @Test @Order(19)
+    void devePreservarObservacaoAoContestar() {
+        String observacaoOriginal = "Observação que deve ser preservada";
+        String motivoContestacao  = "Item faltando na entrega";
+
+        PedidoListPage lista = criarPedidoNaLista(observacaoOriginal)
+                .clicarBotaoStatus("PROCESSANDO")
+                .clicarBotaoStatus("CONCLUIDO")
+                .clicarContestaNaLinha(motivoContestacao);
+
+        PedidoDetalhePage detalhe = lista.clicarDetalheNaLinha(0);
+
+        assertThat(detalhe.getObservacao()).contains(observacaoOriginal);
+        assertThat(detalhe.getMotivoContestacao()).isNotBlank();
+    }
+
+    @Test @Order(20)
+    void deveExibirMotivoContestacaoNoDetalhe() {
+        String motivo = "Produto diferente do anunciado";
+
+        PedidoListPage lista = criarPedidoNaLista("Pedido Para Verificar Motivo")
+                .clicarBotaoStatus("PROCESSANDO")
+                .clicarBotaoStatus("CONCLUIDO")
+                .clicarContestaNaLinha(motivo);
+
+        PedidoDetalhePage detalhe = lista.clicarDetalheNaLinha(0);
+
+        assertThat(detalhe.getMotivoContestacao()).isEqualTo(motivo);
+        assertThat(detalhe.getStatus()).containsIgnoringCase("CONTESTADO");
     }
 }

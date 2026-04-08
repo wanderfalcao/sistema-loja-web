@@ -78,6 +78,16 @@ public class PedidoDetalhePage extends BasePage {
         return driver.findElements(By.cssSelector("table tbody tr")).size();
     }
 
+    public String getMotivoContestacao() {
+        List<WebElement> elements = driver.findElements(By.cssSelector(".contestacao-box .cmotivo"));
+        return elements.isEmpty() ? "" : elements.get(0).getText();
+    }
+
+    public String getObservacao() {
+        List<WebElement> elements = driver.findElements(By.cssSelector(".info-value"));
+        return elements.isEmpty() ? "" : elements.get(0).getText();
+    }
+
     public boolean alertaSucessoVisivel() {
         List<WebElement> alertas = driver.findElements(By.cssSelector(".alert-success"));
         if (alertas.isEmpty()) return false;
