@@ -33,6 +33,13 @@
             <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
             <version>${springdoc.version}</version>
         </dependency>
+
+        <!-- Bucket4j — rate limiting por IP sem dependencia de infraestrutura externa -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
+        </dependency>
     </dependencies>
 
     <build>

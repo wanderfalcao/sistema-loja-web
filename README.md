@@ -363,7 +363,10 @@ O sistema é composto por quatro serviços Spring Boot que se comunicam via HTTP
 - *MapStruct*: mapeamento entidade ↔ DTO gerado em tempo de compilação, sem reflexão em runtime
 
 **Comunicação entre serviços:**
-O `pedido-service` chama o `produto-service` via `ProdutoServiceClientImpl` (RestTemplate com Apache HttpClient 5 para suporte a PATCH). Em Docker toda chamada passa pelo gateway (`http://api-gateway:8080`), que aplica load balancing via Eureka. No Cloud Run a chamada vai direto à URL do produto-service (sem Eureka — `eureka.client.enabled=false` no perfil `prod`).
+O `pedido-service` chama o `produto-service` via `ProdutoServiceClientImpl` (RestTemplate com Apache HttpClient 5 para suporte a PATCH). Em Docker a chamada é direta (`http://produto-service:8081`), na mesma rede interna — sem passar pelo gateway, que é ponto de entrada exclusivo para clientes externos. No Cloud Run a chamada vai direto à URL do produto-service (sem Eureka — `eureka.client.enabled=false` no perfil `prod`).
+
+**Rate Limiting no Gateway:**
+O `api-gateway` aplica rate limiting por IP via `RateLimitFilter` (Bucket4j, token bucket). O limite é de 20 requisições por segundo; quando excedido, o gateway retorna `429 Too Many Requests`. A implementação é em memória — sem Redis ou infraestrutura extra —, funcionando da mesma forma em ambiente local e no Cloud Run.
 
 ---
 
