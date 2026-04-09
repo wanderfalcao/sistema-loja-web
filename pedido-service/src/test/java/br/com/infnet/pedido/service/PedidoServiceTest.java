@@ -204,7 +204,7 @@ class PedidoServiceTest {
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         Pedido p = service.contestar(id, "Produto com defeito");
         assertThat(p.getStatus()).isEqualTo(StatusPedido.CONTESTADO);
-        assertThat(p.getObservacao()).isEqualTo("Produto com defeito");
+        assertThat(p.getMotivoContestacao()).isEqualTo("Produto com defeito");
     }
 
     @Test
