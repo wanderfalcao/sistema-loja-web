@@ -130,6 +130,13 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
+        <!-- Resilience4j — circuit breaker no cliente de produto -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+
         <!-- Apache HttpClient 5 — habilita suporte a PATCH no RestTemplate -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>

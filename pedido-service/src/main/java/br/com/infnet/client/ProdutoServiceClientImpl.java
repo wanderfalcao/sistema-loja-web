@@ -2,13 +2,12 @@ package br.com.infnet.client;
 
 import br.com.infnet.shared.exception.DomainException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
@@ -37,6 +36,7 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
     @Value("${produto.service.page.size:200}")
     private int produtoPageSize;
 
+    @CircuitBreaker(name = "produto-service", fallbackMethod = "buscarProdutoFallback")
     @Override
     public ProdutoInfo buscarProduto(UUID id) {
         String url = produtoServiceUrl + PRODUTOS_PATH + id;
@@ -50,6 +50,12 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
         }
     }
 
+    private ProdutoInfo buscarProdutoFallback(UUID id, Throwable t) {
+        log.error("Circuit breaker aberto para buscarProduto({}): {}", id, t.getMessage());
+        throw new DomainException(MSG_SERVICO_INDISPONIVEL);
+    }
+
+    @CircuitBreaker(name = "produto-service", fallbackMethod = "listarAtivosFallback")
     @Override
     public List<ProdutoInfo> listarAtivos() {
         String url = produtoServiceUrl + "/api/v1/produtos?size=" + produtoPageSize + "&sort=nome";
@@ -62,12 +68,18 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
         }
     }
 
+    private List<ProdutoInfo> listarAtivosFallback(Throwable t) {
+        log.error("Circuit breaker aberto para listarAtivos: {}", t.getMessage());
+        throw new DomainException(MSG_SERVICO_INDISPONIVEL);
+    }
+
     /**
      * Ajusta o estoque de um produto no produto-service.
-     * Erros de rede (ResourceAccessException) e erros 5xx são retentados até 3 vezes
-     * com backoff exponencial (500ms → 1s → 2s). Erros 4xx não são retentados
-     * pois indicam problema de negócio (produto não encontrado, estoque insuficiente).
+     * Erros de rede e 5xx são retentados (até 3x, backoff 500ms→2s) pelo @Retryable.
+     * Se o produto-service continuar falhando, o @CircuitBreaker abre o circuito
+     * após atingir o limiar de falhas, evitando sobrecarga em cascata.
      */
+    @CircuitBreaker(name = "produto-service", fallbackMethod = "ajustarEstoqueFallback")
     @Retryable(
         retryFor  = { ResourceAccessException.class, HttpServerErrorException.class },
         maxAttempts = 3,
@@ -89,8 +101,13 @@ public class ProdutoServiceClientImpl implements ProdutoServiceClient {
 
     @Recover
     public void ajustarEstoqueRecovery(Exception ex, UUID id, TipoOperacaoEstoque operacao, int quantidade) {
-        log.error("Falha ao ajustar estoque do produto {} após 3 tentativas — operacao={}, qtd={}",
+        log.error("Falha ao ajustar estoque do produto {} apos 3 tentativas — operacao={}, qtd={}",
                   id, operacao, quantidade, ex);
+        throw new DomainException(MSG_SERVICO_INDISPONIVEL);
+    }
+
+    private void ajustarEstoqueFallback(UUID id, TipoOperacaoEstoque operacao, int quantidade, Throwable t) {
+        log.error("Circuit breaker aberto para ajustarEstoque({}, {}, {}): {}", id, operacao, quantidade, t.getMessage());
         throw new DomainException(MSG_SERVICO_INDISPONIVEL);
     }
 

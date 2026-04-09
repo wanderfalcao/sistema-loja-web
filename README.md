@@ -263,7 +263,11 @@ Um pedido tem dois campos de texto distintos: `observacao` (preenchida na criaç
 
 ### Resiliência na comunicação entre serviços
 
-O `ProdutoServiceClientImpl.ajustarEstoque()` usa `@Retryable` (3 tentativas, backoff 500 ms × 2) para erros de rede (`ResourceAccessException`) e erros 5xx — erros 4xx não são retentados porque indicam problema de negócio. O `@Recover` converte a falha final em `DomainException`.
+O `ProdutoServiceClientImpl` combina duas camadas de proteção para chamadas ao produto-service:
+
+**Retry com backoff exponencial (`@Retryable`):** `ajustarEstoque()` tenta até 3 vezes com intervalo de 500 ms → 1 s → 2 s em erros de rede (`ResourceAccessException`) e erros 5xx. Erros 4xx não são retentados pois indicam problema de negócio. O `@Recover` converte a falha final em `DomainException`.
+
+**Circuit Breaker (`@CircuitBreaker` / Resilience4j):** todos os métodos do cliente (`buscarProduto`, `listarAtivos`, `ajustarEstoque`) são protegidos por um circuit breaker compartilhado (`produto-service`). Após 50 % de falhas em 10 chamadas (mínimo 5), o circuito abre por 30 s — nesse período, as chamadas falham imediatamente sem tentar o HTTP, evitando sobrecarga em cascata. Somente erros de conectividade (`ResourceAccessException`, `HttpServerErrorException`) contam como falha; `DomainException` é ignorada pelo CB. A ordem AOP garante que o retry ocorre dentro do circuit breaker: CB (externo) → Retry (interno) → método.
 
 O `EstoqueOrquestrador` implementa o padrão Saga compensatório: para cada item processado com sucesso que seja seguido de uma falha, a operação inversa é enviada ao produto-service. Falhas na compensação são registradas em log para intervenção manual — não lançam exceção para não mascarar o erro original.
 
