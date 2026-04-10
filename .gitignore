@@ -15,8 +15,18 @@ target/
 .DS_Store
 Thumbs.db
 
-# Claude Code local
-.claude/
+# SonarQube local
+.sonar/
+
+# Arquivos de conflito de merge
+*.orig
+*.rej
+
+# Editores
+*.swp
+*.swo
+*~
+
 arquitetura.drawio
 mvnd.sh
 qodana.yaml
