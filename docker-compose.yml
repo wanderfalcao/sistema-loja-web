@@ -39,9 +39,29 @@ services:
       timeout: 5s
       retries: 5
 
+  produto-test-db:
+    image: postgres:16-alpine
+    container_name: produto-test-db
+    profiles: [test]
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: ${TEST_DB_USER:-test}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-test}
+      TZ: America/Sao_Paulo
+    networks:
+      - test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TEST_DB_USER:-test} -d testdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   pedido-test-db:
     image: postgres:16-alpine
     container_name: pedido-test-db
+    profiles: [test]
     ports:
       - "5435:5432"
     environment:
@@ -50,7 +70,7 @@ services:
       POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-test}
       TZ: America/Sao_Paulo
     networks:
-      - backend
+      - test
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${TEST_DB_USER:-test} -d testdb"]
       interval: 5s
@@ -139,6 +159,7 @@ services:
       eureka-server:
         condition: service_healthy
     networks:
+      - backend
       - frontend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
@@ -210,6 +231,8 @@ networks:
   backend:
     driver: bridge
   frontend:
+    driver: bridge
+  test:
     driver: bridge
 
 volumes:
