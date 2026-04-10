@@ -3,7 +3,7 @@ description: Autentica via OIDC e configura gcloud CLI. Retorna o outcome do ste
 
 inputs:
   wif_provider:
-    description: Workload Identity Provider (ex: projects/123/locations/global/workloadIdentityPools/...)
+    description: "Workload Identity Provider (ex: projects/123/locations/global/workloadIdentityPools/...)"
     required: true
   service_account:
     description: Service Account email do GCP

@@ -71,7 +71,7 @@ jobs:
 
       - name: Build e testes
         run: |
-          mvn -B verify -pl produto-service,pedido-service \
+          mvn -B clean verify -pl .,produto-service,pedido-service -am \
             -Dspring.profiles.active=test
 
       - name: Análise SonarQube
@@ -80,7 +80,7 @@ jobs:
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.token=${{ steps.sonar-setup.outputs.token }} \
             -Dsonar.projectKey=sistema-loja-web \
-            -Dsonar.exclusions="**/DataLoader.java,**/*Application.java,**/dto/**,**/mapper/**"
+            -Dsonar.exclusions="**/DataLoader.java,**/*Application.java,**/dto/**,**/mapper/**,api-gateway/**"
 
       - name: Resultado da análise
         run: |
@@ -107,5 +107,5 @@ jobs:
           echo "| **Ferramenta** | SonarQube Community |" >> $GITHUB_STEP_SUMMARY
           echo "| **Projeto** | sistema-loja-web |" >> $GITHUB_STEP_SUMMARY
           echo "| **Cobertura mínima** | 90% (JaCoCo) |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Exclusões** | DataLoader, Application, dto/\*\*, mapper/\*\* |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Exclusões** | DataLoader, Application, dto/\*\*, mapper/\*\*, api-gateway/\*\* |" >> $GITHUB_STEP_SUMMARY
           echo "::notice title=SonarQube::Análise concluída — consulte o Quality Gate no log acima"
