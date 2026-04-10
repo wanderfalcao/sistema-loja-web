@@ -5,6 +5,7 @@ import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -32,7 +33,9 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String ip = exchange.getRequest().getRemoteAddress().getAddress().getHostAddress();
+        String ip = Optional.ofNullable(exchange.getRequest().getRemoteAddress())
+            .map(addr -> addr.getAddress().getHostAddress())
+            .orElse("unknown");
         Bucket bucket = buckets.computeIfAbsent(ip, k -> createBucket());
 
         if (bucket.tryConsume(1)) {
