@@ -121,7 +121,8 @@ class PedidoSeleniumTest {
 
     PedidoListPage criarPedidoNaLista(String observacao) {
         abrirLista().clicarNovoPedido().preencherESalvar(observacao);
-        // driver está em /pedidos/{uuid} — capturar ID antes de navegar
+        // driver está em /pedidos/{uuid} — aguardar redirect antes de capturar o ID
+        wait.until(ExpectedConditions.urlMatches(".*/pedidos/[0-9a-f\\-]+$"));
         String url = driver.getCurrentUrl();
         String id = url.substring(url.lastIndexOf('/') + 1);
         createdIds.add(id);
@@ -228,7 +229,13 @@ class PedidoSeleniumTest {
         driver.findElement(By.cssSelector(
                 "#tabelaPedidos tbody tr:first-child a[href*='/pedidos/']:not([href*='editar'])")).click();
         wait.until(ExpectedConditions.urlMatches(".*/pedidos/[0-9a-f\\-]+$"));
-        assertThat(driver.getPageSource()).containsIgnoringCase("Produto Teste Selenium");
+        if (REMOTE_MODE) {
+            // Serviço real usa produtos do catálogo — verifica que a descrição foi gerada automaticamente
+            String titulo = driver.findElement(By.cssSelector("h1.page-title")).getText();
+            assertThat(titulo).isNotBlank().doesNotContainIgnoringCase("sem itens");
+        } else {
+            assertThat(driver.getPageSource()).containsIgnoringCase("Produto Teste Selenium");
+        }
     }
 
     @Test @Order(14)
@@ -236,7 +243,9 @@ class PedidoSeleniumTest {
         PedidoListPage lista = criarPedidoNaLista("Pedido Manter");
         int antes = lista.contarPedidos();
         ((JavascriptExecutor) driver).executeScript("window.confirm = function(){ return false; }");
-        driver.findElements(By.cssSelector("form[action*='/deletar'] button[type='submit']")).get(0).click();
+        WebElement btnDeletar = driver.findElements(
+                By.cssSelector("form[action*='/deletar'] button[type='submit']")).get(0);
+        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnDeletar);
         assertThat(lista.contarPedidos()).isEqualTo(antes);
     }
 
