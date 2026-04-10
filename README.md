@@ -66,14 +66,14 @@ docker-compose up --build
 
 Aguarda todos os health checks (~2 min na primeira vez). Ao finalizar, o terminal exibe os endereços:
 
-| Serviço     | URL                                       |
-|-------------|-------------------------------------------|
-| API Gateway | http://localhost:8080                     |
-| Pedidos     | http://localhost:8080/pedidos             |
-| Produtos    | http://localhost:8080/produtos            |
-| Swagger UI  | http://localhost:8080/swagger-ui.html     |
-| Eureka      | http://localhost:8761                     |
-| SonarQube   | http://localhost:9000  (admin / admin)    |
+| Serviço     | URL                                             |
+| ----------- | ----------------------------------------------- |
+| API Gateway | http://localhost:8080                           |
+| Pedidos     | http://localhost:8080/pedidos                   |
+| Produtos    | http://localhost:8080/produtos                  |
+| Swagger UI  | http://localhost:8080/swagger-ui.html           |
+| Eureka      | http://localhost:8761                           |
+| SonarQube   | http://localhost:9000  (admin / admin)          |
 | PgAdmin     | http://localhost:5050  (admin@loja.com / admin) |
 
 Para subir só o essencial sem SonarQube e PgAdmin:
@@ -111,32 +111,32 @@ O `DataLoader` popula produtos e pedidos de exemplo automaticamente em qualquer 
 
 ### Produtos
 
-| Método | Caminho                              | Descrição                                      |
-|--------|--------------------------------------|------------------------------------------------|
-| GET    | /api/v1/produtos                     | Lista produtos ativos (paginado)               |
-| POST   | /api/v1/produtos                     | Cadastra produto                               |
-| GET    | /api/v1/produtos/{id}                | Busca por ID                                   |
-| GET    | /api/v1/produtos/sku/{sku}           | Busca por SKU                                  |
-| PUT    | /api/v1/produtos/{id}                | Atualiza produto                               |
-| DELETE | /api/v1/produtos/{id}                | Remove produto (exige estoque zerado)          |
-| PATCH  | /api/v1/produtos/{id}/estoque        | Ajusta estoque (ENTRADA ou SAIDA)              |
-| PATCH  | /api/v1/produtos/{id}/promocao       | Ativa promoção com percentual e datas          |
-| DELETE | /api/v1/produtos/{id}/promocao       | Encerra promoção ativa                         |
+| Método | Caminho                        | Descrição                             |
+| ------ | ------------------------------ | ------------------------------------- |
+| GET    | /api/v1/produtos               | Lista produtos ativos (paginado)      |
+| POST   | /api/v1/produtos               | Cadastra produto                      |
+| GET    | /api/v1/produtos/{id}          | Busca por ID                          |
+| GET    | /api/v1/produtos/sku/{sku}     | Busca por SKU                         |
+| PUT    | /api/v1/produtos/{id}          | Atualiza produto                      |
+| DELETE | /api/v1/produtos/{id}          | Remove produto (exige estoque zerado) |
+| PATCH  | /api/v1/produtos/{id}/estoque  | Ajusta estoque (ENTRADA ou SAIDA)     |
+| PATCH  | /api/v1/produtos/{id}/promocao | Ativa promoção com percentual e datas |
+| DELETE | /api/v1/produtos/{id}/promocao | Encerra promoção ativa                |
 
 ### Pedidos
 
-| Método | Caminho                              | Descrição                                      |
-|--------|--------------------------------------|------------------------------------------------|
-| GET    | /api/v1/pedidos                      | Lista pedidos (paginado)                       |
-| POST   | /api/v1/pedidos                      | Cria pedido                                    |
-| GET    | /api/v1/pedidos/{id}                 | Busca por ID                                   |
-| PUT    | /api/v1/pedidos/{id}                 | Atualiza pedido                                |
-| DELETE | /api/v1/pedidos/{id}                 | Remove pedido                                  |
-| POST   | /api/v1/pedidos/{id}/status          | Muda status (`?novoStatus=PROCESSANDO` etc.)   |
-| POST   | /api/v1/pedidos/{id}/contestar       | Contesta pedido concluído com motivo           |
-| POST   | /api/v1/pedidos/{id}/itens           | Adiciona item ao pedido (apenas PENDENTE)      |
-| DELETE | /api/v1/pedidos/{id}/itens/{itemId}  | Remove item do pedido (apenas PENDENTE)        |
-| GET    | /api/v1/pedidos/{id}/itens           | Lista itens do pedido                          |
+| Método | Caminho                             | Descrição                                    |
+| ------ | ----------------------------------- | -------------------------------------------- |
+| GET    | /api/v1/pedidos                     | Lista pedidos (paginado)                     |
+| POST   | /api/v1/pedidos                     | Cria pedido                                  |
+| GET    | /api/v1/pedidos/{id}                | Busca por ID                                 |
+| PUT    | /api/v1/pedidos/{id}                | Atualiza pedido                              |
+| DELETE | /api/v1/pedidos/{id}                | Remove pedido                                |
+| POST   | /api/v1/pedidos/{id}/status         | Muda status (`?novoStatus=PROCESSANDO` etc.) |
+| POST   | /api/v1/pedidos/{id}/contestar      | Contesta pedido concluído com motivo         |
+| POST   | /api/v1/pedidos/{id}/itens          | Adiciona item ao pedido (apenas PENDENTE)    |
+| DELETE | /api/v1/pedidos/{id}/itens/{itemId} | Remove item do pedido (apenas PENDENTE)      |
+| GET    | /api/v1/pedidos/{id}/itens          | Lista itens do pedido                        |
 
 Documentação interativa: http://localhost:8080/swagger-ui.html (dropdown para alternar entre os serviços)
 
@@ -164,15 +164,16 @@ start pedido-service\target\site\jacoco\index.html
 - *Property-based (jqwik)*: executa centenas de combinações geradas automaticamente para validar invariantes, incluindo tentativas de SQL injection e XSS nos campos de texto
 - *Selenium E2E*: navega pelas interfaces Thymeleaf como um usuário real, valida formulários, listagens e detalhes
 
-Os testes Selenium usam `@Tag("selenium")` e ficam fora do ciclo padrão. Para rodá-los é preciso ter um servidor subindo e Chrome instalado:
+Os testes Selenium usam `@Tag("selenium")` e ficam fora do ciclo padrão. O banco de teste sobe e desce automaticamente via Docker — basta ter o Docker rodando e o Chrome instalado:
 
 ```bash
 # Headless (padrão — mesmo comportamento do CI)
-mvn test -pl pedido-service -Dgroups=selenium
-mvn test -pl produto-service -Dgroups=selenium
+mvn verify -pl produto-service -Dgroups=selenium
+mvn verify -pl pedido-service -Dgroups=selenium
 
 # Com browser visível (útil para depurar falhas localmente)
-mvn test -pl pedido-service -Dgroups=selenium -Dselenium.headless=false
+mvn verify -pl produto-service -Dgroups=selenium -Dselenium.headless=false
+mvn verify -pl pedido-service -Dgroups=selenium -Dselenium.headless=false
 ```
 
 A extensão `SeleniumExtension` implementa `TestWatcher` e captura screenshot automaticamente em `target/screenshots/{Classe}/{metodo}.png` quando um teste falha — sem necessidade de configuração adicional.
@@ -195,10 +196,10 @@ Os arquivos ficam em `.github/workflows/`. Para verificar execuções passadas: 
 
 Localmente os bancos sobem via Docker Compose (`produto-db :5433` e `pedido-db :5434`). No Cloud Run cada serviço usa uma instância separada no [Neon.tech](https://neon.tech) — PostgreSQL gerenciado com free tier.
 
-| Ambiente        | Banco                          |
-|-----------------|--------------------------------|
-| local / dev     | Docker Compose (PostgreSQL 16) |
-| Cloud Run       | Neon.tech PostgreSQL           |
+| Ambiente    | Banco                          |
+| ----------- | ------------------------------ |
+| local / dev | Docker Compose (PostgreSQL 16) |
+| Cloud Run   | Neon.tech PostgreSQL           |
 
 A connection string fica nos secrets `PRODUTO_DB_URL` e `PEDIDO_DB_URL` no formato `jdbc:postgresql://...?sslmode=require`.
 
@@ -207,17 +208,18 @@ A connection string fica nos secrets `PRODUTO_DB_URL` e `PEDIDO_DB_URL` no forma
 Para rodar localmente:
 
 ```bash
-# Sobe o SonarQube junto com o restante da stack
-docker-compose up sonarqube -d
+# Sobe o SonarQube (profile analysis — não inicia com docker compose up normal)
+docker compose --profile analysis up -d sonarqube
 
-# Aguarda o health check ficar UP, depois:
-mvn verify -pl produto-service,pedido-service
+# Aguarda UP (~90s). Acesse http://localhost:9000 (admin / admin),
+# gere um token em My Account → Security → Generate Token e use abaixo:
+mvn -B clean verify -pl .,produto-service,pedido-service -am -Dspring.profiles.active=test
 
 mvn sonar:sonar \
   -Dsonar.host.url=http://localhost:9000 \
-  -Dsonar.login=admin \
-  -Dsonar.password=admin \
-  -Dsonar.projectKey=sistema-loja-web
+  -Dsonar.token=<SEU_TOKEN> \
+  -Dsonar.projectKey=sistema-loja-web \
+  "-Dsonar.exclusions=**/DataLoader.java,**/*Application.java,**/dto/**,**/mapper/**,api-gateway/**"
 ```
 
 Dashboard disponível em http://localhost:9000/dashboard?id=sistema-loja-web
@@ -247,7 +249,7 @@ As entidades de domínio não têm setters públicos. Para mudar o estado de um 
 `CategoriaProduto` tem `descontoMaximoPermitido()` abstrato. Cada categoria define seu próprio teto:
 
 | Categoria     | Desconto máximo |
-|---------------|-----------------|
+| ------------- | --------------- |
 | MONITORES     | 30%             |
 | PERIFERICOS   | 40%             |
 | ARMAZENAMENTO | 25%             |
@@ -263,17 +265,13 @@ Um pedido tem dois campos de texto distintos: `observacao` (preenchida na criaç
 
 ### Resiliência na comunicação entre serviços
 
-O `ProdutoServiceClientImpl` combina duas camadas de proteção para chamadas ao produto-service:
+`ProdutoServiceClientImpl` combina retry e circuit breaker. O `@Retryable` tenta `ajustarEstoque` até 3 vezes com backoff (500 ms → 1 s → 2 s) em erros de rede e 5xx; o `@Recover` converte a falha final em `DomainException`. Erros 4xx não são retentados — indicam problema de negócio, não de infraestrutura. O circuit breaker (Resilience4j) abre após 50% de falhas em 10 chamadas e fica fechado por 30 s. A ordem AOP garante: CB (externo) → Retry (interno) → método.
 
-**Retry com backoff exponencial (`@Retryable`):** `ajustarEstoque()` tenta até 3 vezes com intervalo de 500 ms → 1 s → 2 s em erros de rede (`ResourceAccessException`) e erros 5xx. Erros 4xx não são retentados pois indicam problema de negócio. O `@Recover` converte a falha final em `DomainException`.
-
-**Circuit Breaker (`@CircuitBreaker` / Resilience4j):** todos os métodos do cliente (`buscarProduto`, `listarAtivos`, `ajustarEstoque`) são protegidos por um circuit breaker compartilhado (`produto-service`). Após 50 % de falhas em 10 chamadas (mínimo 5), o circuito abre por 30 s — nesse período, as chamadas falham imediatamente sem tentar o HTTP, evitando sobrecarga em cascata. Somente erros de conectividade (`ResourceAccessException`, `HttpServerErrorException`) contam como falha; `DomainException` é ignorada pelo CB. A ordem AOP garante que o retry ocorre dentro do circuit breaker: CB (externo) → Retry (interno) → método.
-
-O `EstoqueOrquestrador` implementa o padrão Saga compensatório: para cada item processado com sucesso que seja seguido de uma falha, a operação inversa é enviada ao produto-service. Falhas na compensação são registradas em log para intervenção manual — não lançam exceção para não mascarar o erro original.
+O `EstoqueOrquestrador` usa Saga compensatório — se um item falhar após outros já processados, a operação inversa é enviada ao produto-service. Falhas na compensação vão para o log e não mascaram o erro original.
 
 ### Interface de criação de pedidos
 
-O formulário de novo pedido usa um layout de duas colunas: à esquerda, uma grade de cards com campo de busca em tempo real (filtro por nome e SKU); à direita, um painel de carrinho que atualiza a cada alteração de quantidade com total estimado. O grid adapta o número de colunas ao espaço disponível e marca os cards selecionados visualmente. A busca funciona só no cliente, sem requisição ao servidor.
+Layout em duas colunas: grade de cards com busca client-side (por nome e SKU) à esquerda e carrinho com total estimado à direita. Seleção e busca acontecem sem nenhuma requisição ao servidor.
 
 ### Regras de negócio adicionadas
 
@@ -283,7 +281,7 @@ O formulário de novo pedido usa um layout de duas colunas: à esquerda, uma gra
 
 ### CI/CD
 
-Os cinco workflows publicam resumo no painel do Actions via `$GITHUB_STEP_SUMMARY`. O deploy usa OIDC com GCP Workload Identity Federation — sem chave JSON nos secrets, o GitHub emite um token temporário que o GCP valida. Os serviços rodam no Cloud Run e o ambiente `prod` exige aprovação manual antes do deploy.
+Deploy via OIDC + Workload Identity Federation — sem chave JSON nos secrets. Cada ambiente tem proteção própria; `prod` trava até aprovação manual no GitHub.
 
 ---
 
@@ -301,15 +299,15 @@ PENDENTE ──────► PROCESSANDO ──────► CONCLUIDO
                                                   └──► PROCESSANDO
 ```
 
-| De | Para | Observação |
-|----|------|------------|
-| PENDENTE | PROCESSANDO | Debita estoque |
-| PENDENTE | CANCELADO | Sem impacto em estoque |
-| PROCESSANDO | CONCLUIDO | — |
-| PROCESSANDO | CANCELADO | Devolve estoque |
-| CONCLUIDO | CONTESTADO | Abre contestação |
-| CONTESTADO | PROCESSANDO | Reinicia processamento |
-| CONTESTADO | CANCELADO | — |
+| De          | Para        | Observação             |
+| ----------- | ----------- | ---------------------- |
+| PENDENTE    | PROCESSANDO | Debita estoque         |
+| PENDENTE    | CANCELADO   | Sem impacto em estoque |
+| PROCESSANDO | CONCLUIDO   | —                      |
+| PROCESSANDO | CANCELADO   | Devolve estoque        |
+| CONCLUIDO   | CONTESTADO  | Abre contestação       |
+| CONTESTADO  | PROCESSANDO | Reinicia processamento |
+| CONTESTADO  | CANCELADO   | —                      |
 
 ---
 
@@ -363,10 +361,10 @@ O sistema é composto por quatro serviços Spring Boot que se comunicam via HTTP
 - *MapStruct*: mapeamento entidade ↔ DTO gerado em tempo de compilação, sem reflexão em runtime
 
 **Comunicação entre serviços:**
-O `pedido-service` chama o `produto-service` via `ProdutoServiceClientImpl` (RestTemplate com Apache HttpClient 5 para suporte a PATCH). Em Docker a chamada é direta (`http://produto-service:8081`), na mesma rede interna — sem passar pelo gateway, que é ponto de entrada exclusivo para clientes externos. No Cloud Run a chamada vai direto à URL do produto-service (sem Eureka — `eureka.client.enabled=false` no perfil `prod`).
+O `pedido-service` chama o `produto-service` via `ProdutoServiceClientImpl` (RestTemplate + Apache HttpClient 5 para suporte a PATCH). Em Docker a chamada vai direto pela rede interna — o gateway é ponto de entrada exclusivo para clientes externos. No Cloud Run vai direto à URL do serviço (`eureka.client.enabled=false` no perfil `prod`).
 
 **Rate Limiting no Gateway:**
-O `api-gateway` aplica rate limiting por IP via `RateLimitFilter` (Bucket4j, token bucket). O limite é de 20 requisições por segundo; quando excedido, o gateway retorna `429 Too Many Requests`. A implementação é em memória — sem Redis ou infraestrutura extra —, funcionando da mesma forma em ambiente local e no Cloud Run.
+Rate limiting por IP no `RateLimitFilter` (Bucket4j): 20 req/s por IP, `429` quando excedido. Implementação em memória, sem Redis.
 
 ---
 
@@ -377,10 +375,10 @@ O repositório possui cinco workflows em `.github/workflows/`:
 #### `ci.yml` — Integração Contínua
 Dispara em todo push para `master` e em pull requests.
 
-| Job | O que faz |
-|-----|-----------|
-| `testes` | `mvn verify` nos dois serviços. JaCoCo exige ≥ 90% de cobertura de linhas — build falha se não atingir. Publica relatório JUnit e HTML do JaCoCo como artefato. |
-| `selenium` | Roda após `testes`. Sobe os serviços com Testcontainers (PostgreSQL real no runner) e executa os testes `@Tag("selenium")` com ChromeDriver headless. |
+| Job        | O que faz                                                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `testes`   | `mvn verify` nos dois serviços. JaCoCo exige ≥ 90% de cobertura de linhas — build falha se não atingir. Publica relatório JUnit e HTML do JaCoCo como artefato. |
+| `selenium` | Roda após `testes`. Sobe os serviços com Testcontainers (PostgreSQL real no runner) e executa os testes `@Tag("selenium")` com ChromeDriver headless.           |
 
 Resumo gerado em `$GITHUB_STEP_SUMMARY` com resultado de cada job, cobertura e artefatos.
 
@@ -390,10 +388,10 @@ Roda Checkstyle com o estilo Google. Qualquer violação de severidade `error` q
 #### `security.yml` — Segurança (SAST + DAST)
 Dispara em push para `master` e toda segunda-feira às 02h UTC.
 
-| Job | Ferramenta | O que analisa |
-|-----|-----------|---------------|
-| `codeql` | GitHub CodeQL | Análise estática do código Java. Queries `security-and-quality`. Resultados em **Security → Code scanning alerts**. |
-| `dast` | OWASP ZAP Baseline | Sobe o `produto-service` com PostgreSQL real no runner e executa scan dinâmico HTTP. Relatório HTML disponível como artefato por 14 dias. |
+| Job      | Ferramenta         | O que analisa                                                                                                                             |
+| -------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `codeql` | GitHub CodeQL      | Análise estática do código Java. Queries `security-and-quality`. Resultados em **Security → Code scanning alerts**.                       |
+| `dast`   | OWASP ZAP Baseline | Sobe o `produto-service` com PostgreSQL real no runner e executa scan dinâmico HTTP. Relatório HTML disponível como artefato por 14 dias. |
 
 #### `sonarqube.yml` — Quality Gate
 Sobe o SonarQube Community Edition diretamente no runner (sem servidor dedicado). Executa análise nos dois serviços com JaCoCo e exibe resultado do Quality Gate no log e no `$GITHUB_STEP_SUMMARY`.
@@ -418,19 +416,17 @@ deploy-test ─────► Cloud Run (aguarda aprovação manual)
 deploy-prod ─────► Cloud Run (aguarda aprovação manual)
 ```
 
-Autenticação via **OIDC com Workload Identity Federation**: o GitHub emite um JWT assinado com claims do repositório; o GCP valida o token sem nenhuma chave JSON armazenada nos secrets. Os secrets do repositório contêm apenas `GCP_WIF_PROVIDER` e `GCP_SERVICE_ACCOUNT` — identificadores, não credenciais de longa duração.
-
-Todos os workflows publicam resumo em Markdown no painel do Actions via `$GITHUB_STEP_SUMMARY`.
+Autenticação via **OIDC + Workload Identity Federation**: o GitHub emite um JWT que o GCP valida diretamente — nenhuma chave JSON nos secrets, só `GCP_WIF_PROVIDER` e `GCP_SERVICE_ACCOUNT`.
 
 ---
 
 ### 3. Ambientes de Deploy e suas Proteções
 
-| Ambiente | Serviço Cloud Run | Trigger | Proteção |
-|----------|------------------|---------|----------|
-| **dev** | `produto-service-dev`<br>`pedido-service-dev` | Automático após CI verde | Nenhuma — deploy imediato |
-| **test** | `produto-service-test`<br>`pedido-service-test` | Automático após dev | **Required reviewers**: aprovação manual obrigatória antes de executar |
-| **prod** | `produto-service`<br>`pedido-service` | Automático após test | **Required reviewers**: aprovação manual obrigatória antes de executar |
+| Ambiente | Serviço Cloud Run                               | Trigger                  | Proteção                                                               |
+| -------- | ----------------------------------------------- | ------------------------ | ---------------------------------------------------------------------- |
+| **dev**  | `produto-service-dev`<br>`pedido-service-dev`   | Automático após CI verde | Nenhuma — deploy imediato                                              |
+| **test** | `produto-service-test`<br>`pedido-service-test` | Automático após dev      | **Required reviewers**: aprovação manual obrigatória antes de executar |
+| **prod** | `produto-service`<br>`pedido-service`           | Automático após test     | **Required reviewers**: aprovação manual obrigatória antes de executar |
 
 **Configuração dos ambientes** (GitHub → Settings → Environments):
 - `dev`: sem proteção, deploy imediato
@@ -439,12 +435,12 @@ Todos os workflows publicam resumo em Markdown no painel do Actions via `$GITHUB
 
 **Variáveis por ambiente (Cloud Run env vars):**
 
-| Variável | dev | test | prod |
-|----------|-----|------|------|
-| `SPRING_PROFILES_ACTIVE` | `prod` | `prod` | `prod` |
-| `SPRING_DATASOURCE_URL` | `PRODUTO_DB_URL` (secret) | idem | idem |
-| `PRODUTO_SERVICE_URL` | URL Cloud Run dev | URL Cloud Run test | URL Cloud Run prod |
-| `APP_PRODUTO_BASE_URL` | URL Cloud Run dev | URL Cloud Run test | URL Cloud Run prod |
+| Variável                 | dev                       | test               | prod               |
+| ------------------------ | ------------------------- | ------------------ | ------------------ |
+| `SPRING_PROFILES_ACTIVE` | `prod`                    | `prod`             | `prod`             |
+| `SPRING_DATASOURCE_URL`  | `PRODUTO_DB_URL` (secret) | idem               | idem               |
+| `PRODUTO_SERVICE_URL`    | URL Cloud Run dev         | URL Cloud Run test | URL Cloud Run prod |
+| `APP_PRODUTO_BASE_URL`   | URL Cloud Run dev         | URL Cloud Run test | URL Cloud Run prod |
 
 Cada serviço escala para zero instâncias quando ocioso (dev/test: 0–2, prod: 1–10). Banco de dados gerenciado pelo [Neon.tech](https://neon.tech) com SSL obrigatório.
 
@@ -454,23 +450,23 @@ Cada serviço escala para zero instâncias quando ocioso (dev/test: 0–2, prod:
 
 #### Testes locais (executam no CI — `ci.yml`)
 
-| Tipo | Tecnologia | O que valida |
-|------|-----------|--------------|
-| **Unitários** | JUnit 5 + Mockito | Regras de negócio isoladas: guard clauses, transições de status, cálculo de subtotal, validações de value objects |
-| **MockMvc** | Spring MVC Test | Controladores MVC e REST: payloads, códigos HTTP, redirecionamentos, flash attributes |
-| **Integração** | WireMock + Testcontainers | `pedido-service` chamando `produto-service` simulado em cenários de falha (timeout, 404, serviço indisponível) com PostgreSQL real |
-| **Property-based (fuzz)** | jqwik | Centenas de entradas geradas automaticamente validam invariantes. Inclui tentativas de SQL injection e XSS nos campos de texto — nenhuma deve lançar NullPointerException ou vazar dados |
-| **Selenium E2E** | Selenium 4 + ChromeDriver | Navega pela UI como um usuário real. Inclui cenários de preservação de observação ao contestar, exibição do motivo de contestação no detalhe, e rejeição de produto ativo sem estoque. `SeleniumExtension` captura screenshot em falha. Headless por padrão, modo visual via `-Dselenium.headless=false` |
-| **Cobertura mínima** | JaCoCo | 90% de linhas cobertas. Build falha automaticamente se não atingir |
+| Tipo                      | Tecnologia                | O que valida                                                                                                                                                                                                                                                                                             |
+| ------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unitários**             | JUnit 5 + Mockito         | Regras de negócio isoladas: guard clauses, transições de status, cálculo de subtotal, validações de value objects                                                                                                                                                                                        |
+| **MockMvc**               | Spring MVC Test           | Controladores MVC e REST: payloads, códigos HTTP, redirecionamentos, flash attributes                                                                                                                                                                                                                    |
+| **Integração**            | WireMock + Testcontainers | `pedido-service` chamando `produto-service` simulado em cenários de falha (timeout, 404, serviço indisponível) com PostgreSQL real                                                                                                                                                                       |
+| **Property-based (fuzz)** | jqwik                     | Centenas de entradas geradas automaticamente validam invariantes. Inclui tentativas de SQL injection e XSS nos campos de texto — nenhuma deve lançar NullPointerException ou vazar dados                                                                                                                 |
+| **Selenium E2E**          | Selenium 4 + ChromeDriver | Navega pela UI como um usuário real. Inclui cenários de preservação de observação ao contestar, exibição do motivo de contestação no detalhe, e rejeição de produto ativo sem estoque. `SeleniumExtension` captura screenshot em falha. Headless por padrão, modo visual via `-Dselenium.headless=false` |
+| **Cobertura mínima**      | JaCoCo                    | 90% de linhas cobertas. Build falha automaticamente se não atingir                                                                                                                                                                                                                                       |
 
 #### Análise estática e dinâmica (executam no `security.yml`)
 
-| Tipo | Tecnologia | Frequência |
-|------|-----------|------------|
-| **SAST** | GitHub CodeQL | Todo push + toda segunda-feira |
+| Tipo     | Tecnologia         | Frequência                     |
+| -------- | ------------------ | ------------------------------ |
+| **SAST** | GitHub CodeQL      | Todo push + toda segunda-feira |
 | **DAST** | OWASP ZAP Baseline | Todo push + toda segunda-feira |
 
-O DAST sobe o `produto-service` com PostgreSQL real no runner do Actions e executa varredura HTTP automatizada, identificando vulnerabilidades como headers ausentes, endpoints expostos e configurações inseguras.
+O ZAP sobe o `produto-service` com PostgreSQL real no runner e executa varredura HTTP, identificando headers ausentes, endpoints expostos e configurações inseguras.
 
 #### Testes pós-deploy (executam no `deploy.yml`)
 
@@ -479,9 +475,7 @@ Após cada deploy bem-sucedido (dev, test e prod), o pipeline:
 1. Faz health check nos endpoints `/actuator/health` dos dois serviços — aguarda até 120s para o Cloud Run escalar a instância
 2. Executa os testes `@Tag("selenium")` apontando para as URLs reais do Cloud Run via `-Dselenium.base.url.produtos` e `-Dselenium.base.url.pedidos`
 3. Os testes Selenium navegam pela UI Thymeleaf como um usuário real: criam produtos, fazem pedidos, validam listagens e formulários
-4. O resultado é enviado como artefato (`selenium-dev`, `selenium-test`, `selenium-prod`) e continua com `continue-on-error: true` para não bloquear o pipeline por falha de E2E
-
-Isso garante que cada ambiente é validado funcionalmente logo após o deploy, antes da promoção ao próximo ambiente.
+4. O resultado é enviado como artefato (`selenium-dev`, `selenium-test`, `selenium-prod`) — `continue-on-error: true` para não bloquear o pipeline em falha de E2E
 
 ---
 
