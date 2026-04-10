@@ -19,6 +19,9 @@
     <properties>
         <!-- Sobrescrito com -Dsurefire.excludedGroups= para rodar testes @Tag("selenium") -->
         <surefire.excludedGroups>selenium</surefire.excludedGroups>
+        <!-- DB de teste Selenium (referenciados pelo profile selenium-local no POM pai) -->
+        <test.db.name>produto-test-db</test.db.name>
+        <test.db.port>5436</test.db.port>
     </properties>
 
     <dependencies>
@@ -249,6 +252,8 @@
         </plugins>
     </build>
 
+    <!-- Configuração do profile selenium-local centralizada no POM pai.
+         test.db.name e test.db.port definidos nas properties acima. -->
     <profiles>
         <profile>
             <id>selenium-local</id>
@@ -258,9 +263,17 @@
                     <value>selenium</value>
                 </property>
             </activation>
-            <properties>
-                <surefire.excludedGroups></surefire.excludedGroups>
-            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

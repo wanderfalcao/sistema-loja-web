@@ -22,7 +22,7 @@
         <java.version>21</java.version>
         <spring-boot.version>3.2.3</spring-boot.version>
         <spring-cloud.version>2023.0.1</spring-cloud.version>
-        <testcontainers.version>1.20.4</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <lombok.version>1.18.42</lombok.version>
         <springdoc.version>2.3.0</springdoc.version>
@@ -68,6 +68,11 @@
                     <version>3.2.5</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.2.5</version>
+                </plugin>
+                <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
                     <artifactId>sonar-maven-plugin</artifactId>
                     <version>3.11.0.3922</version>
@@ -75,4 +80,96 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <!-- Ativado com -Dgroups=selenium. Configuração centralizada aqui via pluginManagement;
+         cada módulo define test.db.name e test.db.port e apenas declara os plugins. -->
+    <profiles>
+        <profile>
+            <id>selenium-local</id>
+            <activation>
+                <property>
+                    <name>groups</name>
+                    <value>selenium</value>
+                </property>
+            </activation>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.codehaus.mojo</groupId>
+                            <artifactId>exec-maven-plugin</artifactId>
+                            <version>3.2.0</version>
+                            <executions>
+                                <execution>
+                                    <id>start-test-db</id>
+                                    <phase>pre-integration-test</phase>
+                                    <goals><goal>exec</goal></goals>
+                                    <configuration>
+                                        <executable>docker</executable>
+                                        <arguments>
+                                            <argument>compose</argument>
+                                            <argument>--profile</argument>
+                                            <argument>test</argument>
+                                            <argument>up</argument>
+                                            <argument>-d</argument>
+                                            <argument>--wait</argument>
+                                            <argument>${test.db.name}</argument>
+                                        </arguments>
+                                        <workingDirectory>${project.basedir}/..</workingDirectory>
+                                    </configuration>
+                                </execution>
+                                <execution>
+                                    <id>stop-test-db</id>
+                                    <phase>post-integration-test</phase>
+                                    <goals><goal>exec</goal></goals>
+                                    <configuration>
+                                        <executable>docker</executable>
+                                        <arguments>
+                                            <argument>compose</argument>
+                                            <argument>--profile</argument>
+                                            <argument>test</argument>
+                                            <argument>stop</argument>
+                                            <argument>${test.db.name}</argument>
+                                        </arguments>
+                                        <workingDirectory>${project.basedir}/..</workingDirectory>
+                                    </configuration>
+                                </execution>
+                            </executions>
+                        </plugin>
+                        <plugin>
+                            <artifactId>maven-failsafe-plugin</artifactId>
+                            <configuration>
+                                <includes>
+                                    <include>**/*SeleniumTest.java</include>
+                                </includes>
+                                <groups>selenium</groups>
+                                <additionalClasspathElements>
+                                    <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                                </additionalClasspathElements>
+                                <systemPropertyVariables>
+                                    <spring.profiles.active>test</spring.profiles.active>
+                                    <spring.datasource.url>jdbc:postgresql://localhost:${test.db.port}/testdb</spring.datasource.url>
+                                    <spring.datasource.driver-class-name>org.postgresql.Driver</spring.datasource.driver-class-name>
+                                    <spring.datasource.username>test</spring.datasource.username>
+                                    <spring.datasource.password>test</spring.datasource.password>
+                                    <selenium.headless>${selenium.headless}</selenium.headless>
+                                </systemPropertyVariables>
+                            </configuration>
+                            <executions>
+                                <execution>
+                                    <goals>
+                                        <goal>integration-test</goal>
+                                        <goal>verify</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+            </build>
+        </profile>
+    </profiles>
 </project>
