@@ -1,9 +1,10 @@
 # sistema-loja-web
 
-[![CI](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/ci.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/ci.yml)
-[![Code Quality](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/code-quality.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/code-quality.yml)
-[![Security](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/security.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/security.yml)
-[![Deploy](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/deploy.yml/badge.svg)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/deploy.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/wanderfalcao/sistema-loja-web/ci.yml?branch=master&label=CI&style=flat-square)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/ci.yml)
+[![Code Quality](https://img.shields.io/github/actions/workflow/status/wanderfalcao/sistema-loja-web/code-quality.yml?branch=master&label=Code+Quality&style=flat-square)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/code-quality.yml)
+[![Security](https://img.shields.io/github/actions/workflow/status/wanderfalcao/sistema-loja-web/security.yml?branch=master&label=Security&style=flat-square)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/security.yml)
+[![SonarQube](https://img.shields.io/github/actions/workflow/status/wanderfalcao/sistema-loja-web/sonarqube.yml?branch=master&label=SonarQube&style=flat-square)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/sonarqube.yml)
+[![Deploy](https://img.shields.io/github/actions/workflow/status/wanderfalcao/sistema-loja-web/deploy.yml?branch=master&label=Deploy&style=flat-square)](https://github.com/wanderfalcao/sistema-loja-web/actions/workflows/deploy.yml)
 
 Sistema de loja construído com microsserviços Spring Boot. O `produto-service` gerencia o catálogo e o estoque; o `pedido-service` controla o ciclo de vida dos pedidos e chama o produto-service para ajustar estoque nas transições de status. Tudo passa pelo `api-gateway`, que roteia as requisições e serve o Swagger unificado dos dois serviços.
 
