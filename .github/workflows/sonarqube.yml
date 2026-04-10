@@ -11,20 +11,6 @@ jobs:
     name: SonarQube
     runs-on: ubuntu-latest
 
-    services:
-      sonarqube:
-        image: sonarqube:community
-        ports:
-          - 9000:9000
-        env:
-          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
-        options: >-
-          --health-cmd "wget -qO- http://localhost:9000/api/system/status | grep -q UP || exit 1"
-          --health-interval 30s
-          --health-timeout 10s
-          --health-retries 15
-          --health-start-period 90s
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,32 +23,40 @@ jobs:
           distribution: temurin
           cache: maven
 
+      - name: Configurar vm.max_map_count para Elasticsearch
+        run: sudo sysctl -w vm.max_map_count=262144
+
+      - name: Iniciar SonarQube
+        run: |
+          docker run -d --name sonarqube \
+            -p 9000:9000 \
+            -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
+            sonarqube:community
+
       - name: Aguardar SonarQube
         run: |
-          echo "Verificando disponibilidade do SonarQube..."
+          echo "Aguardando SonarQube inicializar..."
           for i in $(seq 1 30); do
             STATUS=$(curl -sf http://localhost:9000/api/system/status \
               | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "indisponivel")
             echo "Tentativa $i: $STATUS"
             if [ "$STATUS" = "UP" ]; then
-              echo "SonarQube disponível."
+              echo "SonarQube disponivel."
               break
             fi
             sleep 10
           done
           if [ "$STATUS" != "UP" ]; then
-            echo "SonarQube não inicializou a tempo." && exit 1
+            echo "SonarQube nao inicializou a tempo." && exit 1
           fi
 
       - name: Criar projeto e gerar token
         id: sonar-setup
         run: |
-          # Cria projeto
           curl -sf -u admin:admin -X POST \
             "http://localhost:9000/api/projects/create" \
             -d "name=sistema-loja-web&project=sistema-loja-web" || true
 
-          # Gera token de análise
           TOKEN=$(curl -sf -u admin:admin -X POST \
             "http://localhost:9000/api/user_tokens/generate" \
             -d "name=ci-${{ github.run_id }}&type=GLOBAL_ANALYSIS_TOKEN" \
@@ -84,8 +78,7 @@ jobs:
 
       - name: Resultado da análise
         run: |
-          echo "Relatório disponível em: http://localhost:9000/dashboard?id=sistema-loja-web"
-          echo "Aguardando processamento do relatório pelo SonarQube..."
+          echo "Aguardando processamento do relatorio pelo SonarQube..."
           for i in $(seq 1 24); do
             STATUS=$(curl -sf -u admin:admin \
               "http://localhost:9000/api/qualitygates/project_status?projectKey=sistema-loja-web" \
@@ -108,7 +101,7 @@ jobs:
           if status != 'OK':
               print(f'::error title=Quality Gate::Status={status} — build bloqueado')
               sys.exit(1)
-          print('::notice title=Quality Gate::OK — todos os critérios de qualidade passaram')
+          print('::notice title=Quality Gate::OK — todos os criterios de qualidade passaram')
           PYEOF
 
       - name: Resumo SonarQube
